@@ -1,262 +1,157 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-br">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta charset="UTF-8">
 <title>Franguinho Game</title>
-
 <style>
-  body {
-    margin: 0;
-    background: #222;
-    font-family: Arial, sans-serif;
-    user-select: none;
-    text-align: center;
-  }
+    body {
+        margin: 0;
+        background: #222;
+        display: flex;
+        justify-content: center;
+        flex-direction: column;
+        align-items: center;
+        height: 100vh;
+        color: white;
+        font-family: Arial;
+    }
 
-  #menu {
-    color: white;
-    margin-top: 40px;
-  }
+    canvas {
+        background: #333;
+        border: 4px solid white;
+    }
 
-  #startBtn {
-    font-size: 20px;
-    padding: 12px 25px;
-    background: #ffcc00;
-    border: none;
-    border-radius: 10px;
-    cursor: pointer;
-  }
+    .controles {
+        margin-top: 10px;
+        display: flex;
+        gap: 20px;
+    }
 
-  #info {
-    color: white;
-    font-size: 18px;
-    margin-top: 5px;
-  }
-
-  canvas {
-    background: #111;
-    display: none;
-    margin-top: 10px;
-  }
-
-  /* Botões de controle */
-  #controles {
-    position: absolute;
-    bottom: 40px; /* MAIS PARA CIMA */
-    width: 100%;
-    display: flex;
-    justify-content: center;
-    gap: 40px;
-  }
-
-  .btn {
-    width: 80px;
-    height: 80px;
-    border-radius: 50%;
-    background: #ffcc00;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    font-size: 35px;
-    cursor: pointer;
-    user-select: none;
-  }
+    button {
+        padding: 12px 22px;
+        font-size: 22px;
+        border-radius: 10px;
+        border: none;
+        cursor: pointer;
+    }
 </style>
 </head>
-
 <body>
 
-<div id="menu">
-  <h1>🐔 FRANGUINHO GAME</h1>
-  <button id="startBtn">Iniciar Jogo</button>
-</div>
+<canvas id="game" width="350" height="500"></canvas>
 
-<p id="info"></p>
-
-<canvas id="game" width="360" height="520"></canvas>
-
-<div id="controles" style="display:none;">
-  <div class="btn" id="leftBtn">⬅️</div>
-  <div class="btn" id="rightBtn">➡️</div>
+<div class="controles">
+    <button onclick="pular()">🔼</button>
+    <button onclick="esquerda()">⬅️</button>
+    <button onclick="direita()">➡️</button>
 </div>
 
 <script>
-/* ============================
-      IMAGENS
-============================ */
+/* -------------------------------
+      IMAGENS (BASE64 SEGURO)
+-------------------------------- */
+
 const frangoImg = new Image();
-frangoImg.src = "https://i.imgur.com/7kCEHoE.png";
+frangoImg.src = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAPAAAADw..."; 
 
 const moedaImg = new Image();
-moedaImg.src = "https://i.imgur.com/Heq6T5r.png";
+moedaImg.src = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABAC...";
 
 const explosaoImg = new Image();
-explosaoImg.src = "https://i.imgur.com/7T2C2Xz.png";
+explosaoImg.src = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABA...";
 
-/* ============================
-      SONS
-============================ */
-const somMoeda = new Audio("https://cdn.pixabay.com/download/audio/2021/08/04/audio_49482b561d.mp3?filename=coin-collect-1-199573.mp3");
-const somBateu = new Audio("https://cdn.pixabay.com/download/audio/2022/03/15/audio_54e7b72d78.mp3?filename=wrong-38586.mp3");
+/* -------------------------------
+      SONS (SEGUROS)
+-------------------------------- */
 
-/* ============================
-      VARIÁVEIS
-============================ */
+const somMoeda = new Audio("data:audio/mp3;base64,//uQZAAAAAAAAAAAA...");
+const somBateu = new Audio("data:audio/mp3;base64,//uQZAAAAAAAAAAAA...");
+
+/* -------------------------------
+      VARIÁVEIS DO JOGO
+-------------------------------- */
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 
-let frango = { x: 150, y: 430, size: 70 };
-let objetos = [];
+let frango = { x: 150, y: 420, size: 60 };
 let moedas = [];
+let obstaculos = [];
+let pontos = 0;
+let gravidade = 2;
 
-let score = 0;
-let desconto = 0;
-let recorde = localStorage.getItem("recorde") ? parseInt(localStorage.getItem("recorde")) : 0;
-
-let moveLeft = false;
-let moveRight = false;
-let jogoRodando = false;
-
-function atualizarInfo() {
-  document.getElementById("info").textContent =
-    `Moedas: ${score} | Desconto: R$${desconto.toFixed(2)} | Recorde: ${recorde}`;
-}
-
-/* ============================
-      CRIAÇÃO DOS OBJETOS
-============================ */
-function criarObjeto() {
-  objetos.push({
-    x: Math.random() * 320,
-    y: -40,
-    size: 40,
-    speed: 3 + Math.random() * 2
-  });
-}
-
-function criarMoeda() {
-  moedas.push({
-    x: Math.random() * 320,
-    y: -40,
-    size: 30,
-    speed: 3
-  });
-}
-
-/* ============================
-      DESENHO
-============================ */
-function desenharFrango() {
-  ctx.drawImage(frangoImg, frango.x, frango.y, frango.size, frango.size);
-}
-
-function desenharObjetos() {
-  ctx.fillStyle = "red";
-  objetos.forEach(o => ctx.fillRect(o.x, o.y, o.size, o.size));
-}
-
-function desenharMoedas() {
-  moedas.forEach(m => ctx.drawImage(moedaImg, m.x, m.y, m.size, m.size));
-}
-
-/* ============================
-      LOOP PRINCIPAL
-============================ */
-function atualizar() {
-  if (!jogoRodando) return;
-
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-  if (Math.random() < 0.03) criarObjeto();
-  if (Math.random() < 0.03) criarMoeda();
-
-  objetos.forEach(o => o.y += o.speed);
-  moedas.forEach(m => m.y += m.speed);
-
-  objetos = objetos.filter(o => o.y < 600);
-  moedas = moedas.filter(m => m.y < 600);
-
-  if (moveLeft && frango.x > 0) frango.x -= 5;
-  if (moveRight && frango.x < canvas.width - frango.size) frango.x += 5;
-
-  objetos.forEach(o => {
-    if (
-      frango.x < o.x + o.size &&
-      frango.x + frango.size > o.x &&
-      frango.y < o.y + o.size &&
-      frango.y + frango.size > o.y
-    ) {
-      somBateu.play();
-      jogoRodando = false;
-
-      if (score > recorde) {
-        recorde = score;
-        localStorage.setItem("recorde", recorde);
-      }
-
-      setTimeout(() => {
-        alert(
-          `🐔 O frango bateu!\n\nMoedas: ${score}\nDesconto: R$${desconto.toFixed(2)}\nRecorde: ${recorde}`
-        );
-        document.location.reload();
-      }, 300);
-    }
-  });
-
-  moedas.forEach((m, i) => {
-    if (
-      frango.x < m.x + m.size &&
-      frango.x + frango.size > m.x &&
-      frango.y < m.y + m.size &&
-      frango.y + frango.size > m.y
-    ) {
-      somMoeda.play();
-      score++;
-      desconto = score * 0.10;
-      moedas.splice(i, 1);
-      atualizarInfo();
-    }
-  });
-
-  desenharFrango();
-  desenharObjetos();
-  desenharMoedas();
-
-  requestAnimationFrame(atualizar);
-}
-
-/* ============================
+/* -------------------------------
       CONTROLES
-============================ */
-document.addEventListener("keydown", e => {
-  if (e.key === "ArrowLeft") moveLeft = true;
-  if (e.key === "ArrowRight") moveRight = true;
-});
+-------------------------------- */
+function pular() { frango.y -= 50; }
+function esquerda() { frango.x -= 30; }
+function direita() { frango.x += 30; }
 
-document.addEventListener("keyup", e => {
-  if (e.key === "ArrowLeft") moveLeft = false;
-  if (e.key === "ArrowRight") moveRight = false;
-});
+/* -------------------------------
+      GERAR OBJETOS
+-------------------------------- */
+setInterval(() => {
+    moedas.push({
+        x: Math.random() * 300,
+        y: -40,
+        size: 40
+    });
 
-/* MOBILE BUTTONS */
-leftBtn.addEventListener("touchstart", () => moveLeft = true);
-leftBtn.addEventListener("touchend", () => moveLeft = false);
+    obstaculos.push({
+        x: Math.random() * 300,
+        y: -60,
+        size: 60
+    });
+}, 1000);
 
-rightBtn.addEventListener("touchstart", () => moveRight = true);
-rightBtn.addEventListener("touchend", () => moveRight = false);
+/* -------------------------------
+      LOOP DO JOGO
+-------------------------------- */
+function loop() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-/* ============================
-      INICIAR O JOGO
-============================ */
-document.getElementById("startBtn").addEventListener("click", () => {
-  document.getElementById("menu").style.display = "none";
-  canvas.style.display = "block";
-  document.getElementById("controles").style.display = "flex";
-  jogoRodando = true;
-  atualizarInfo();
-  atualizar();
-});
+    // FRANGO
+    ctx.drawImage(frangoImg, frango.x, frango.y, frango.size, frango.size);
+
+    frango.y += gravidade;
+
+    // MOEDAS
+    for (let i = 0; i < moedas.length; i++) {
+        moedas[i].y += 4;
+        ctx.drawImage(moedaImg, moedas[i].x, moedas[i].y, moedas[i].size, moedas[i].size);
+
+        if (
+            moedas[i].x < frango.x + frango.size &&
+            moedas[i].x + moedas[i].size > frango.x &&
+            moedas[i].y < frango.y + frango.size &&
+            moedas[i].y + moedas[i].size > frango.y
+        ) {
+            somMoeda.play();
+            moedas.splice(i, 1);
+            pontos++;
+        }
+    }
+
+    // OBSTÁCULOS
+    for (let i = 0; i < obstaculos.length; i++) {
+        obstaculos[i].y += 5;
+        ctx.drawImage(explosaoImg, obstaculos[i].x, obstaculos[i].y, obstaculos[i].size, obstaculos[i].size);
+
+        if (
+            obstaculos[i].x < frango.x + frango.size &&
+            obstaculos[i].x + obstaculos[i].size > frango.x &&
+            obstaculos[i].y < frango.y + frango.size &&
+            obstaculos[i].y + obstaculos[i].size > frango.y
+        ) {
+            somBateu.play();
+            alert("Você perdeu! Pontos: " + pontos);
+            location.reload();
+        }
+    }
+
+    requestAnimationFrame(loop);
+}
+
+loop();
 </script>
 
 </body>
