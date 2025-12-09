@@ -1,91 +1,89 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Franguinho Dash</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Franguinho Game</title>
 
 <style>
-    body {
-        margin: 0;
-        text-align: center;
-        background: #fff3e0;
-        font-family: Arial, sans-serif;
-    }
+  body {
+    margin: 0;
+    background: #222;
+    font-family: Arial, sans-serif;
+    user-select: none;
+    text-align: center;
+  }
 
-    #menu {
-        margin-top: 40px;
-    }
+  #menu {
+    color: white;
+    margin-top: 40px;
+  }
 
-    #startBtn {
-        padding: 15px 35px;
-        background: orange;
-        border: none;
-        font-size: 22px;
-        border-radius: 10px;
-        cursor: pointer;
-        color: #fff;
-        font-weight: bold;
-    }
+  #startBtn {
+    font-size: 20px;
+    padding: 12px 25px;
+    background: #ffcc00;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+  }
 
-    #info {
-        font-size: 22px;
-        margin-top: 10px;
-        color: #d35400;
-        font-weight: bold;
-    }
+  #info {
+    color: white;
+    font-size: 18px;
+    margin-top: 5px;
+  }
 
-    canvas {
-        background: #ffffff;
-        border: 4px solid #ffb347;
-        border-radius: 12px;
-        margin-top: 20px;
-        width: 95vw;
-        height: 75vh;
-        display: none;
-    }
+  canvas {
+    background: #111;
+    display: none;
+    margin-top: 10px;
+  }
 
-    /* CONTROLES DE CELULAR */
-    #controles {
-        margin-top: 20px;
-        display: none;
-        justify-content: center;
-        gap: 40px;
-    }
+  /* Botões de controle */
+  #controles {
+    position: absolute;
+    bottom: 40px; /* MAIS PARA CIMA */
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    gap: 40px;
+  }
 
-    #controles button {
-        width: 90px;
-        height: 90px;
-        font-size: 38px;
-        border-radius: 50%;
-        border: none;
-        background: orange;
-        color: white;
-        box-shadow: 0 0 10px #0004;
-    }
+  .btn {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: #ffcc00;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 35px;
+    cursor: pointer;
+    user-select: none;
+  }
 </style>
 </head>
+
 <body>
 
 <div id="menu">
-    <h1>🐔 Franguinho Dash</h1>
-    <button id="startBtn">Começar</button>
-    <p>Cada moeda vale R$0,10 de desconto!</p>
+  <h1>🐔 FRANGUINHO GAME</h1>
+  <button id="startBtn">Iniciar Jogo</button>
 </div>
 
-<div id="info">Moedas: 0 | Desconto: R$0,00 | Recorde: 0</div>
+<p id="info"></p>
 
-<canvas id="game" width="400" height="520"></canvas>
+<canvas id="game" width="360" height="520"></canvas>
 
-<!-- BOTÕES PARA CELULAR -->
-<div id="controles">
-    <button id="btn-esq">⟵</button>
-    <button id="btn-dir">⟶</button>
+<div id="controles" style="display:none;">
+  <div class="btn" id="leftBtn">⬅️</div>
+  <div class="btn" id="rightBtn">➡️</div>
 </div>
 
 <script>
 /* ============================
-      IMAGENS E SONS
+      IMAGENS
 ============================ */
 const frangoImg = new Image();
 frangoImg.src = "https://i.imgur.com/7kCEHoE.png";
@@ -93,16 +91,22 @@ frangoImg.src = "https://i.imgur.com/7kCEHoE.png";
 const moedaImg = new Image();
 moedaImg.src = "https://i.imgur.com/Heq6T5r.png";
 
+const explosaoImg = new Image();
+explosaoImg.src = "https://i.imgur.com/7T2C2Xz.png";
+
+/* ============================
+      SONS
+============================ */
 const somMoeda = new Audio("https://cdn.pixabay.com/download/audio/2021/08/04/audio_49482b561d.mp3?filename=coin-collect-1-199573.mp3");
 const somBateu = new Audio("https://cdn.pixabay.com/download/audio/2022/03/15/audio_54e7b72d78.mp3?filename=wrong-38586.mp3");
 
 /* ============================
-      VARIÁVEIS DO JOGO
+      VARIÁVEIS
 ============================ */
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 
-let frango = { x: 150, y: 400, size: 60 };
+let frango = { x: 150, y: 430, size: 70 };
 let objetos = [];
 let moedas = [];
 
@@ -115,152 +119,143 @@ let moveRight = false;
 let jogoRodando = false;
 
 function atualizarInfo() {
-    document.getElementById("info").textContent =
-        `Moedas: ${score} | Desconto: R$${desconto.toFixed(2)} | Recorde: ${recorde}`;
+  document.getElementById("info").textContent =
+    `Moedas: ${score} | Desconto: R$${desconto.toFixed(2)} | Recorde: ${recorde}`;
 }
 
 /* ============================
-      CRIAR OBJETOS
+      CRIAÇÃO DOS OBJETOS
 ============================ */
 function criarObjeto() {
-    objetos.push({
-        x: Math.random() * 350,
-        y: -40,
-        size: 40,
-        speed: 3 + Math.random() * 2
-    });
+  objetos.push({
+    x: Math.random() * 320,
+    y: -40,
+    size: 40,
+    speed: 3 + Math.random() * 2
+  });
 }
 
 function criarMoeda() {
-    moedas.push({
-        x: Math.random() * 350,
-        y: -30,
-        size: 28,
-        speed: 3.4
-    });
+  moedas.push({
+    x: Math.random() * 320,
+    y: -40,
+    size: 30,
+    speed: 3
+  });
 }
 
 /* ============================
-      DESENHAR
+      DESENHO
 ============================ */
 function desenharFrango() {
-    ctx.drawImage(frangoImg, frango.x, frango.y, frango.size, frango.size);
+  ctx.drawImage(frangoImg, frango.x, frango.y, frango.size, frango.size);
 }
 
 function desenharObjetos() {
-    ctx.fillStyle = "red";
-    objetos.forEach(o => ctx.fillRect(o.x, o.y, o.size, o.size));
+  ctx.fillStyle = "red";
+  objetos.forEach(o => ctx.fillRect(o.x, o.y, o.size, o.size));
 }
 
 function desenharMoedas() {
-    moedas.forEach(m => ctx.drawImage(moedaImg, m.x, m.y, m.size, m.size));
+  moedas.forEach(m => ctx.drawImage(moedaImg, m.x, m.y, m.size, m.size));
 }
 
 /* ============================
       LOOP PRINCIPAL
 ============================ */
 function atualizar() {
-    if (!jogoRodando) return;
+  if (!jogoRodando) return;
 
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Criar objetos
-    if (Math.random() < 0.03) criarObjeto();
-    if (Math.random() < 0.02) criarMoeda();
+  if (Math.random() < 0.03) criarObjeto();
+  if (Math.random() < 0.03) criarMoeda();
 
-    // Movimento dos itens
-    objetos.forEach(o => o.y += o.speed);
-    moedas.forEach(m => m.y += m.speed);
+  objetos.forEach(o => o.y += o.speed);
+  moedas.forEach(m => m.y += m.speed);
 
-    objetos = objetos.filter(o => o.y < 600);
-    moedas = moedas.filter(m => m.y < 600);
+  objetos = objetos.filter(o => o.y < 600);
+  moedas = moedas.filter(m => m.y < 600);
 
-    // Movimentação do frango
-    if (moveLeft && frango.x > 0) frango.x -= 5;
-    if (moveRight && frango.x < 350) frango.x += 5;
+  if (moveLeft && frango.x > 0) frango.x -= 5;
+  if (moveRight && frango.x < canvas.width - frango.size) frango.x += 5;
 
-    // Colisão objetos
-    objetos.forEach(o => {
-        if (
-            frango.x < o.x + o.size &&
-            frango.x + frango.size > o.x &&
-            frango.y < o.y + o.size &&
-            frango.y + frango.size > o.y
-        ) {
-            somBateu.play();
-            jogoRodando = false;
+  objetos.forEach(o => {
+    if (
+      frango.x < o.x + o.size &&
+      frango.x + frango.size > o.x &&
+      frango.y < o.y + o.size &&
+      frango.y + frango.size > o.y
+    ) {
+      somBateu.play();
+      jogoRodando = false;
 
-            if (score > recorde) {
-                recorde = score;
-                localStorage.setItem("recorde", recorde);
-            }
+      if (score > recorde) {
+        recorde = score;
+        localStorage.setItem("recorde", recorde);
+      }
 
-            setTimeout(() => {
-                alert(
-                    `🐔 O franguinho foi atingido!\n\n` +
-                    `Moedas: ${score}\nDesconto: R$${desconto.toFixed(2)}\n\nRecorde: ${recorde}`
-                );
-                document.location.reload();
-            }, 200);
-        }
-    });
+      setTimeout(() => {
+        alert(
+          `🐔 O frango bateu!\n\nMoedas: ${score}\nDesconto: R$${desconto.toFixed(2)}\nRecorde: ${recorde}`
+        );
+        document.location.reload();
+      }, 300);
+    }
+  });
 
-    // Colisão moedas
-    moedas.forEach((m, i) => {
-        if (
-            frango.x < m.x + m.size &&
-            frango.x + frango.size > m.x &&
-            frango.y < m.y + m.size &&
-            frango.y + frango.size > m.y
-        ) {
-            somMoeda.play();
-            score++;
-            desconto = score * 0.10;
-            moedas.splice(i, 1);
-            atualizarInfo();
-        }
-    });
+  moedas.forEach((m, i) => {
+    if (
+      frango.x < m.x + m.size &&
+      frango.x + frango.size > m.x &&
+      frango.y < m.y + m.size &&
+      frango.y + frango.size > m.y
+    ) {
+      somMoeda.play();
+      score++;
+      desconto = score * 0.10;
+      moedas.splice(i, 1);
+      atualizarInfo();
+    }
+  });
 
-    desenharFrango();
-    desenharObjetos();
-    desenharMoedas();
+  desenharFrango();
+  desenharObjetos();
+  desenharMoedas();
 
-    requestAnimationFrame(atualizar);
+  requestAnimationFrame(atualizar);
 }
 
 /* ============================
-    CONTROLES
+      CONTROLES
 ============================ */
 document.addEventListener("keydown", e => {
-    if (e.key === "ArrowLeft") moveLeft = true;
-    if (e.key === "ArrowRight") moveRight = true;
+  if (e.key === "ArrowLeft") moveLeft = true;
+  if (e.key === "ArrowRight") moveRight = true;
 });
+
 document.addEventListener("keyup", e => {
-    if (e.key === "ArrowLeft") moveLeft = false;
-    if (e.key === "ArrowRight") moveRight = false;
+  if (e.key === "ArrowLeft") moveLeft = false;
+  if (e.key === "ArrowRight") moveRight = false;
 });
 
-// Botões do celular
-const btnEsq = document.getElementById("btn-esq");
-const btnDir = document.getElementById("btn-dir");
+/* MOBILE BUTTONS */
+leftBtn.addEventListener("touchstart", () => moveLeft = true);
+leftBtn.addEventListener("touchend", () => moveLeft = false);
 
-btnEsq.addEventListener("touchstart", () => moveLeft = true);
-btnEsq.addEventListener("touchend", () => moveLeft = false);
-
-btnDir.addEventListener("touchstart", () => moveRight = true);
-btnDir.addEventListener("touchend", () => moveRight = false);
+rightBtn.addEventListener("touchstart", () => moveRight = true);
+rightBtn.addEventListener("touchend", () => moveRight = false);
 
 /* ============================
-    INICIAR
+      INICIAR O JOGO
 ============================ */
 document.getElementById("startBtn").addEventListener("click", () => {
-    document.getElementById("menu").style.display = "none";
-    document.getElementById("controles").style.display = "flex";
-    canvas.style.display = "block";
-
-    jogoRodando = true;
-    atualizarInfo();
-    atualizar();
+  document.getElementById("menu").style.display = "none";
+  canvas.style.display = "block";
+  document.getElementById("controles").style.display = "flex";
+  jogoRodando = true;
+  atualizarInfo();
+  atualizar();
 });
 </script>
 
