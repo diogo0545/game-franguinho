@@ -83,6 +83,9 @@
     let score = 0;
     let desconto = 0;
 
+    let moveLeft = false;
+    let moveRight = false;
+
     function desenharFrango() {
       ctx.drawImage(frangoImg, frango.x, frango.y, frango.size, frango.size);
     }
@@ -121,6 +124,11 @@
       objetos = objetos.filter(o => o.y < 520);
       moedas = moedas.filter(m => m.y < 520);
 
+      // Movimentação para celular
+      if (moveLeft && frango.x > 0) frango.x -= frango.speed;
+      if (moveRight && frango.x < 300) frango.x += frango.speed;
+
+      // colisão com objetos
       objetos.forEach(o => {
         if (
           frango.x < o.x + o.size &&
@@ -128,12 +136,14 @@
           frango.y < o.y + o.size &&
           frango.y + frango.size > o.y
         ) {
-          alert("O franguinho foi atingido! Moedas coletadas: " + score + "
-Desconto aplicado: R$" + desconto.toFixed(2));
+          alert(
+            `O franguinho foi atingido!\nMoedas coletadas: ${score}\nDesconto aplicado: R$${desconto.toFixed(2)}`
+          );
           document.location.reload();
         }
       });
 
+      // colisão com moedas
       moedas.forEach((m, i) => {
         if (
           frango.x < m.x + m.size &&
@@ -166,6 +176,7 @@ Desconto aplicado: R$" + desconto.toFixed(2));
       atualizar();
     }
   </script>
+
   <!-- Controles para celular -->
   <div id="mobile-controls" style="position: absolute; bottom: 20px; width: 100%; display: flex; justify-content: space-between; padding: 0 40px;">
     <button id="btn-left" style="width: 90px; height: 90px; border-radius: 50%; font-size: 32px;">⟵</button>
@@ -173,20 +184,19 @@ Desconto aplicado: R$" + desconto.toFixed(2));
   </div>
 
 <script>
-// --- Controles para celular ---
 const btnLeft = document.getElementById("btn-left");
 const btnRight = document.getElementById("btn-right");
 
-if (btnLeft && btnRight) {
-  btnLeft.addEventListener("touchstart", () => moveLeft = true);
-  btnLeft.addEventListener("touchend", () => moveLeft = false);
+btnLeft.addEventListener("touchstart", () => moveLeft = true);
+btnLeft.addEventListener("touchend", () => moveLeft = false);
 
-  btnRight.addEventListener("touchstart", () => moveRight = true);
-  btnRight.addEventListener("touchend", () => moveRight = false);
-}
+btnRight.addEventListener("touchstart", () => moveRight = true);
+btnRight.addEventListener("touchend", () => moveRight = false);
 </script>
 
 </body>
 </html>
+
+
 
 
