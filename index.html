@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<title>Franguinho Runner Simples</title>
+<title>Franguinho Runner</title>
 <style>
   body {
     margin: 0;
@@ -23,12 +23,38 @@
     margin-top: 10px;
     font-size: 20px;
   }
+  .btn {
+    margin: 5px;
+    padding: 10px 20px;
+    font-size: 16px;
+    cursor: pointer;
+    border: none;
+    border-radius: 5px;
+    background-color: #ff9900;
+    color: #fff;
+  }
+  #startScreen {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-top: 50px;
+  }
 </style>
 </head>
 <body>
-<h1>Franguinho Runner</h1>
-<canvas id="game" width="600" height="400"></canvas>
-<div id="score">Pontuação: 0 | Desconto: R$0.00</div>
+
+<div id="startScreen">
+  <h1>Franguinho Runner</h1>
+  <button class="btn" id="startBtn">Iniciar Jogo</button>
+</div>
+
+<canvas id="game" width="600" height="400" style="display:none;"></canvas>
+<div id="score" style="display:none;">Pontuação: 0 | Desconto: R$0.00</div>
+
+<div id="controls" style="display:none;">
+  <button class="btn" id="jumpBtn">Pular</button>
+  <button class="btn" id="restartBtn">Reiniciar</button>
+</div>
 
 <script>
 const canvas = document.getElementById('game');
@@ -42,15 +68,36 @@ let moedas = [];
 let obstaculos = [];
 let score = 0;
 let gameOver = false;
+let jogoIniciado = false;
 
+// --- CONTROLES ---
+document.getElementById('jumpBtn').addEventListener('click', () => {
+    if(!gameOver) frango.dy = pulo;
+});
+document.getElementById('restartBtn').addEventListener('click', () => {
+    restartGame();
+});
+
+// --- BOTÃO INICIAR ---
+document.getElementById('startBtn').addEventListener('click', () => {
+    document.getElementById('startScreen').style.display = 'none';
+    canvas.style.display = 'block';
+    document.getElementById('score').style.display = 'block';
+    document.getElementById('controls').style.display = 'block';
+    jogoIniciado = true;
+    update();
+});
+
+// Teclas também funcionam
 document.addEventListener('keydown', e => {
-    if(e.code === 'Space' && !gameOver){
+    if(e.code === 'Space' && !gameOver && jogoIniciado){
         frango.dy = pulo;
     } else if(e.code === 'Space' && gameOver){
         restartGame();
     }
 });
 
+// --- FUNÇÕES ---
 function spawnMoeda() {
     moedas.push({
         x: canvas.width,
@@ -77,6 +124,8 @@ function restartGame() {
     frango.dy = 0;
     gameOver = false;
     updateScore();
+    if(!jogoIniciado) return;
+    update();
 }
 
 function updateScore() {
@@ -99,14 +148,13 @@ function update() {
     ctx.fillStyle = "yellow";
     ctx.fillRect(frango.x, frango.y, frango.width, frango.height);
 
-    // Moedas (círculos dourados)
+    // Moedas
     moedas.forEach((m, i) => {
         m.x -= 4;
         ctx.fillStyle = "gold";
         ctx.beginPath();
         ctx.arc(m.x + m.width/2, m.y + m.height/2, m.width/2, 0, Math.PI*2);
         ctx.fill();
-        // colisão
         if(frango.x < m.x + m.width && frango.x + frango.width > m.x &&
            frango.y < m.y + m.height && frango.y + frango.height > m.y) {
             moedas.splice(i, 1);
@@ -116,16 +164,15 @@ function update() {
         if(m.x + m.width < 0) moedas.splice(i,1);
     });
 
-    // Obstáculos (quadrado vermelho)
+    // Obstáculos
     obstaculos.forEach((o, i) => {
         o.x -= 6;
         ctx.fillStyle = "red";
         ctx.fillRect(o.x, o.y, o.width, o.height);
-        // colisão
         if(frango.x < o.x + o.width && frango.x + frango.width > o.x &&
            frango.y < o.y + o.height && frango.y + frango.height > o.y) {
             gameOver = true;
-            alert("Game Over! Pontuação: " + score + " | Desconto: R$" + (score*0.10).toFixed(2) + "\nPressione Espaço para reiniciar.");
+            alert("Game Over! Pontuação: " + score + " | Desconto: R$" + (score*0.10).toFixed(2));
         }
         if(o.x + o.width < 0) obstaculos.splice(i,1);
     });
@@ -134,10 +181,8 @@ function update() {
 }
 
 // Spawn aleatório
-setInterval(() => { if(!gameOver) spawnMoeda(); }, 2000);
-setInterval(() => { if(!gameOver) spawnObstaculo(); }, 3000);
-
-update();
+setInterval(() => { if(!gameOver && jogoIniciado) spawnMoeda(); }, 2000);
+setInterval(() => { if(!gameOver && jogoIniciado) spawnObstaculo(); }, 3000);
 </script>
 </body>
 </html>
