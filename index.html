@@ -1,353 +1,337 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Super Franguinho Dash</title>
-
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Franguinho - Pega Moedas</title>
   <style>
-    body {
-      margin: 0;
-      font-family: Arial, sans-serif;
-      background: #fff5e6;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-      overflow: hidden;
+    :root{
+      --accent:#ff9f43;
+      --bg:#fff8f0;
+      --danger:#c0392b;
     }
-
-    #menu {
-      text-align: center;
-      position: absolute;
-      top: 40%;
-      transform: translateY(-50%);
-    }
-
-    #menu h1 {
-      font-size: 36px;
-      color: #d35400;
-      margin-bottom: 10px;
-    }
-
-    #menu button {
-      padding: 14px 28px;
-      font-size: 20px;
-      background: #ffa94d;
-      border: none;
-      border-radius: 12px;
-      cursor: pointer;
-      font-weight: bold;
-      box-shadow: 0px 4px 10px #00000022;
-    }
-
-    #menu p {
-      font-size: 20px;
-      color: #d35400;
-      margin-top: 10px;
-    }
-
-    #info {
-      position: absolute;
-      top: 10px;
-      font-size: 20px;
-      font-weight: bold;
-      color: #d35400;
-    }
-
-    #game {
-      background: #fff;
-      border: 3px solid #ffa94d;
-      border-radius: 12px;
-      display: none;
-    }
-
-    /* Tela de Game Over */
-    #gameover {
-      display: none;
-      position: absolute;
-      text-align: center;
-      top: 30%;
-      width: 100%;
-    }
-
-    #gameover h2 {
-      color: #c0392b;
-      font-size: 32px;
-      margin-bottom: 10px;
-    }
-
-    #gameover button {
-      padding: 12px 25px;
-      font-size: 20px;
-      background: #ffa94d;
-      border: none;
-      border-radius: 12px;
-      cursor: pointer;
-      font-weight: bold;
-      margin-top: 15px;
-    }
+    html,body{height:100%;margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);display:flex;align-items:center;justify-content:center;}
+    #wrapper{position:relative;width:360px;height:640px}
+    #menu{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;z-index:10}
+    #menu h1{margin:0;font-size:30px;color:#d35400}
+    #menu button{background:var(--accent);border:0;padding:12px 22px;border-radius:10px;font-weight:700;box-shadow:0 6px 12px rgba(0,0,0,.12);cursor:pointer}
+    #info{position:absolute;top:8px;left:8px;font-weight:700;color:#d35400;z-index:9}
+    canvas{display:block;border-radius:12px;border:4px solid var(--accent);background:#ffffff;display:none}
+    /* mobile controls */
+    #mobile-controls{position:absolute;bottom:16px;width:100%;display:flex;justify-content:space-between;padding:0 18px;z-index:9;pointer-events:none}
+    .mc-btn{pointer-events:auto;width:86px;height:86px;border-radius:50%;font-size:30px;border:0;background:#fff8ee;box-shadow:0 6px 12px rgba(0,0,0,.12);display:flex;align-items:center;justify-content:center}
+    /* gameover */
+    #gameover{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;background:rgba(0,0,0,0.45);z-index:11;color:#fff}
+    #gameover .panel{background:#fff;padding:20px;border-radius:12px;color:#333;text-align:center;min-width:260px}
+    #gameover h2{margin:0 0 8px 0;color:var(--danger)}
   </style>
 </head>
 <body>
+  <div id="wrapper">
+    <div id="menu">
+      <h1>🐔 Franguinho - Pega Moedas</h1>
+      <button id="startBtn">Jogar</button>
+      <div style="font-size:15px;color:#d35400">Cada moeda = R$0,10 desconto</div>
+    </div>
 
-<div id="menu">
-  <h1>🐔 Super Franguinho Dash</h1>
-  <button id="startBtn">Começar</button>
-  <p>Cada moeda vale R$0,10 de desconto!</p>
-</div>
+    <div id="info">Moedas: 0 | Desconto: R$0,00 | Recorde: 0</div>
 
-<div id="info">Moedas: 0 | Desconto: R$0,00 | Recorde: 0</div>
+    <canvas id="game" width="360" height="600"></canvas>
 
-<canvas id="game" width="350" height="500"></canvas>
+    <div id="mobile-controls">
+      <button id="btn-left" class="mc-btn">⟵</button>
+      <button id="btn-right" class="mc-btn">⟶</button>
+    </div>
 
-<div id="gameover">
-  <h2>GAME OVER</h2>
-  <p id="finalScore"></p>
-  <p id="cupom"></p>
-  <button onclick="restartGame()">Jogar Novamente</button>
-</div>
+    <div id="gameover">
+      <div class="panel">
+        <h2>GAME OVER</h2>
+        <p id="finalText">Você pegou X moedas</p>
+        <p id="cupomText"></p>
+        <button id="restartBtn" style="background:var(--accent);border:0;padding:10px 16px;border-radius:8px;font-weight:700;color:#333;cursor:pointer">Jogar de novo</button>
+      </div>
+    </div>
+  </div>
+
 <script>
-/* ============================
-      IMAGENS E SONS
-============================ */
-
+/* ---------------------------
+   Recursos (imagens + sons)
+   --------------------------- */
 const frangoImg = new Image();
-frangoImg.src = "https://i.imgur.com/7kCEHoE.png";
+frangoImg.src = "https://i.imgur.com/7kCEHoE.png"; // sprite estática (fallback)
+const coinImg = new Image();
+coinImg.src = "https://i.imgur.com/Heq6T5r.png";
 
-const moedaImg = new Image();
-moedaImg.src = "https://i.imgur.com/Heq6T5r.png";
+const coinSound = new Audio("https://cdn.pixabay.com/download/audio/2021/08/04/audio_49482b561d.mp3?filename=coin-collect-1-199573.mp3");
+coinSound.volume = 0.6;
+const bgMusic = new Audio("https://cdn.pixabay.com/download/audio/2021/08/04/audio_1a3bf3a7bb.mp3?filename=happy-background-loop-110803.mp3");
+bgMusic.loop = true;
+bgMusic.volume = 0.15;
 
-const explosaoImg = new Image();
-explosaoImg.src = "https://i.imgur.com/7T2C2Xz.png";
-
-const somMoeda = new Audio("https://cdn.pixabay.com/download/audio/2021/08/04/audio_49482b561d.mp3?filename=coin-collect-1-199573.mp3");
-const somBateu = new Audio("https://cdn.pixabay.com/download/audio/2022/03/15/audio_54e7b72d78.mp3?filename=wrong-38586.mp3");
-
-/* ============================
-      VARIÁVEIS DO JOGO
-============================ */
-
+/* ---------------------------
+   Setup e variáveis
+   --------------------------- */
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 
-let frango = { x: 150, y: 400, size: 55, speed: 6 };
-let objetos = [];
-let moedas = [];
+const infoEl = document.getElementById("info");
+const menuEl = document.getElementById("menu");
+const startBtn = document.getElementById("startBtn");
+const gameoverEl = document.getElementById("gameover");
+const finalText = document.getElementById("finalText");
+const cupomText = document.getElementById("cupomText");
+const restartBtn = document.getElementById("restartBtn");
+
+let width = canvas.width;
+let height = canvas.height;
+
+let player = { x: width/2 - 28, y: height/2 - 28, w:56, h:56, speed:4, frame:0 };
+let keys = { left:false, right:false, up:false, down:false };
+let coins = [];
+let maxCoins = 7;
 let score = 0;
-let desconto = 0;
-let recorde = 0;
+let desconto = 0.0;
+let record = 0;
+let playing = false;
 
-let moveLeft = false;
-let moveRight = false;
-let jogoRodando = false;
-
-if (localStorage.getItem("recorde")) {
-  recorde = parseInt(localStorage.getItem("recorde"));
+/* carregar recorde */
+if(localStorage.getItem("frango_record")){
+  record = parseInt(localStorage.getItem("frango_record"),10) || 0;
 }
 
-/* Atualiza texto superior */
-function atualizarInfo() {
-  document.getElementById("info").textContent =
-    `Moedas: ${score} | Desconto: R$${desconto.toFixed(2)} | Recorde: ${recorde}`;
+/* ---------------------------
+   Funções utilitárias
+   --------------------------- */
+function atualizarInfo(){
+  infoEl.textContent = `Moedas: ${score} | Desconto: R$${desconto.toFixed(2)} | Recorde: ${record}`;
 }
 
-/* ============================
-      CRIAÇÃO DOS OBJETOS
-============================ */
-
-function criarObjeto() {
-  objetos.push({
-    x: Math.random() * 320,
-    y: -20,
-    size: 35,
-    speed: 4 + Math.random() * 2
-  });
+function spawnCoin(){
+  const c = {
+    x: Math.random()*(width-36)+8,
+    y: Math.random()*(height-120)+60,
+    size: 28,
+    angle: 0
+  };
+  coins.push(c);
 }
 
-function criarMoeda() {
-  moedas.push({
-    x: Math.random() * 320,
-    y: -20,
-    size: 25,
-    speed: 3
-  });
+/* gera moedas iniciais */
+function resetCoins(){
+  coins = [];
+  for(let i=0;i<maxCoins;i++) spawnCoin();
 }
 
-/* ============================
-      DESENHO NA TELA
-============================ */
-
-function desenharFrango() {
-  ctx.drawImage(frangoImg, frango.x, frango.y, frango.size, frango.size);
+/* ---------------------------
+   Desenhos
+   --------------------------- */
+function drawPlayer(){
+  if(frangoImg.complete && frangoImg.naturalWidth !== 0){
+    ctx.drawImage(frangoImg, player.x, player.y, player.w, player.h);
+  } else {
+    ctx.fillStyle = "#ffa500";
+    ctx.beginPath();
+    ctx.arc(player.x + player.w/2, player.y + player.h/2, player.w/2, 0, Math.PI*2);
+    ctx.fill();
+  }
 }
 
-function desenharObjetos() {
-  ctx.fillStyle = "#e74c3c";
-  objetos.forEach(o => {
-    ctx.fillRect(o.x, o.y, o.size, o.size);
-  });
-}
-
-function desenharMoedas() {
-  moedas.forEach(m => {
-    ctx.drawImage(moedaImg, m.x, m.y, m.size, m.size);
-  });
-}
-
-/* Explosão */
-function desenharExplosao(x, y) {
-  ctx.drawImage(explosaoImg, x - 20, y - 20, 80, 80);
-}
-</script>
-<script>
-/* ============================
-      LOOP PRINCIPAL DO JOGO
-============================ */
-
-function atualizar() {
-  if (!jogoRodando) return;
-
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-  // Criar objetos inimigos
-  if (Math.random() < 0.03) criarObjeto();
-  if (Math.random() < 0.02) criarMoeda();
-
-  // Movimento dos obstáculos
-  objetos.forEach(o => o.y += o.speed);
-  moedas.forEach(m => m.y += m.speed);
-
-  // Remover os que saem da tela
-  objetos = objetos.filter(o => o.y < 520);
-  moedas = moedas.filter(m => m.y < 520);
-
-  // Movimentação do frango (botões e celular)
-  if (moveLeft && frango.x > 0) frango.x -= frango.speed;
-  if (moveRight && frango.x < 300) frango.x += frango.speed;
-
-  // Colisão com obstáculos
-  objetos.forEach(o => {
-    if (
-      frango.x < o.x + o.size &&
-      frango.x + frango.size > o.x &&
-      frango.y < o.y + o.size &&
-      frango.y + frango.size > o.y
-    ) {
-      somBateu.play();
-      desenharExplosao(frango.x, frango.y);
-
-      jogoRodando = false;
-
-      if (score > recorde) {
-        recorde = score;
-        localStorage.setItem("recorde", recorde);
-      }
-
-      setTimeout(() => {
-        alert(
-          `🐔 O franguinho foi atingido!\n\n` +
-          `Moedas coletadas: ${score}\n` +
-          `Desconto: R$${desconto.toFixed(2)}\n\n` +
-          `Recorde: ${recorde}`
-        );
-        document.location.reload();
-      }, 300);
+function drawCoins(){
+  coins.forEach(c=>{
+    c.angle += 0.05;
+    // pequena oscilação
+    const cy = c.y + Math.sin(c.angle)*6;
+    if(coinImg.complete && coinImg.naturalWidth!==0){
+      ctx.drawImage(coinImg, c.x, cy, c.size, c.size);
+    } else {
+      ctx.fillStyle = "gold";
+      ctx.beginPath();
+      ctx.arc(c.x + c.size/2, cy + c.size/2, c.size/2, 0, Math.PI*2);
+      ctx.fill();
     }
   });
+}
 
-  // Colisão com moedas
-  moedas.forEach((m, i) => {
-    if (
-      frango.x < m.x + m.size &&
-      frango.x + frango.size > m.x &&
-      frango.y < m.y + m.size &&
-      frango.y + frango.size > m.y
-    ) {
-      somMoeda.play();
+/* ---------------------------
+   Colisões
+   --------------------------- */
+function rectsOverlap(a,b){
+  return a.x < b.x + b.w &&
+         a.x + a.w > b.x &&
+         a.y < b.y + b.h &&
+         a.y + a.h > b.y;
+}
+
+function checkCoinPickup(){
+  for(let i=0;i<coins.length;i++){
+    const c = coins[i];
+    const coinRect = { x:c.x, y:c.y, w:c.size, h:c.size };
+    if(rectsOverlap(player, coinRect)){
+      // coletou
+      coins.splice(i,1);
       score++;
       desconto = score * 0.10;
-      moedas.splice(i, 1);
+      coinSound.currentTime = 0;
+      coinSound.play().catch(()=>{});
       atualizarInfo();
+      // respawn depois
+      setTimeout(()=> spawnCoin(), 600);
+      break;
     }
-  });
-
-  // Renderiza elementos
-  desenharFrango();
-  desenharObjetos();
-  desenharMoedas();
-
-  // Loop contínuo
-  requestAnimationFrame(atualizar);
+  }
 }
 
-/* ============================
-      CONTROLES DO TECLADO
-============================ */
-document.addEventListener("keydown", e => {
-  if (e.key === "ArrowLeft") moveLeft = true;
-  if (e.key === "ArrowRight") moveRight = true;
+/* ---------------------------
+   Input (teclado + touch)
+   --------------------------- */
+document.addEventListener("keydown", e=>{
+  if(e.key === "ArrowLeft" || e.key === "a") keys.left = true;
+  if(e.key === "ArrowRight" || e.key === "d") keys.right = true;
+  if(e.key === "ArrowUp" || e.key === "w") keys.up = true;
+  if(e.key === "ArrowDown" || e.key === "s") keys.down = true;
 });
-document.addEventListener("keyup", e => {
-  if (e.key === "ArrowLeft") moveLeft = false;
-  if (e.key === "ArrowRight") moveRight = false;
+document.addEventListener("keyup", e=>{
+  if(e.key === "ArrowLeft" || e.key === "a") keys.left = false;
+  if(e.key === "ArrowRight" || e.key === "d") keys.right = false;
+  if(e.key === "ArrowUp" || e.key === "w") keys.up = false;
+  if(e.key === "ArrowDown" || e.key === "s") keys.down = false;
 });
-</script>
-    // ==============================
-    // MOVIMENTAÇÃO DO FRANGO
-    // ==============================
-    function updatePlayer() {
-        if (keys.ArrowLeft) {
-            player.x -= player.speed;
-            player.direction = "left";
-        }
-        if (keys.ArrowRight) {
-            player.x += player.speed;
-            player.direction = "right";
-        }
-        if (keys.ArrowUp) {
-            player.y -= player.speed;
-            player.direction = "up";
-        }
-        if (keys.ArrowDown) {
-            player.y += player.speed;
-            player.direction = "down";
-        }
 
-        // Mantém dentro da tela
-        if (player.x < 0) player.x = 0;
-        if (player.x > canvas.width - player.w) player.x = canvas.width - player.w;
-        if (player.y < 0) player.y = 0;
-        if (player.y > canvas.height - player.h) player.y = canvas.height - player.h;
+/* mobile buttons */
+const btnLeft = document.getElementById("btn-left");
+const btnRight = document.getElementById("btn-right");
+btnLeft.addEventListener("touchstart", e=>{ e.preventDefault(); keys.left = true; });
+btnLeft.addEventListener("touchend", e=>{ e.preventDefault(); keys.left = false; });
+btnRight.addEventListener("touchstart", e=>{ e.preventDefault(); keys.right = true; });
+btnRight.addEventListener("touchend", e=>{ e.preventDefault(); keys.right = false; });
 
-        // Animação
-        if (keys.ArrowLeft || keys.ArrowRight || keys.ArrowUp || keys.ArrowDown) {
-            player.frame++;
-            if (player.frame > 20) {
-                player.frame = 0;
-                player.step = (player.step + 1) % 4;
-            }
-        } else {
-            player.step = 0;
-        }
-    }
+/* also allow dragging on canvas to move player horizontally */
+let touching = false;
+canvas.addEventListener("touchstart", e=>{
+  touching = true;
+  const t = e.touches[0];
+  const rect = canvas.getBoundingClientRect();
+  const x = t.clientX - rect.left;
+  player.x = Math.max(0, Math.min(width - player.w, x - player.w/2));
+});
+canvas.addEventListener("touchmove", e=>{
+  if(!touching) return;
+  const t = e.touches[0];
+  const rect = canvas.getBoundingClientRect();
+  const x = t.clientX - rect.left;
+  player.x = Math.max(0, Math.min(width - player.w, x - player.w/2));
+  e.preventDefault();
+},{passive:false});
+canvas.addEventListener("touchend", ()=>{ touching = false; });
 
-    // ==============================
-    // ATUALIZAÇÕES DO JOGO
-    // ==============================
-    function gameLoop() {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+/* ---------------------------
+   GameLoop (versão B - andar livre)
+   --------------------------- */
+function update(dt){
+  // movimento por teclas
+  if(keys.left) player.x -= player.speed;
+  if(keys.right) player.x += player.speed;
+  if(keys.up) player.y -= player.speed;
+  if(keys.down) player.y += player.speed;
 
-        updatePlayer();
-        drawPlayer();
+  // limites
+  if(player.x < 4) player.x = 4;
+  if(player.x > width - player.w - 4) player.x = width - player.w - 4;
+  if(player.y < 40) player.y = 40;
+  if(player.y > height - player.h - 8) player.y = height - player.h - 8;
+}
 
-        requestAnimationFrame(gameLoop);
-    }
+function render(){
+  ctx.clearRect(0,0,width,height);
+  drawCoins();
+  drawPlayer();
 
-    // Iniciar jogo
-    window.onload = function () {
-        gameLoop();
-    };
+  // HUD (pontuação pequena)
+  ctx.fillStyle = "#222";
+  ctx.font = "16px Arial";
+  ctx.fillText(`Moedas: ${score}`, 12, 22);
+}
+
+/* loop */
+let lastTime = 0;
+function loop(time){
+  if(!playing) return;
+  const dt = (time - lastTime) / 1000;
+  lastTime = time;
+  update(dt);
+  checkCoinPickup();
+  render();
+  requestAnimationFrame(loop);
+}
+
+/* ---------------------------
+   Start / Stop / Gameover
+   --------------------------- */
+startBtn.addEventListener("click", ()=>{
+  startGame();
+});
+
+restartBtn.addEventListener("click", ()=>{
+  startGame();
+});
+
+function startGame(){
+  // preparar estado
+  score = 0;
+  desconto = 0;
+  player.x = width/2 - player.w/2;
+  player.y = height/2 - player.h/2;
+  atualizarInfo();
+  resetCoins();
+  menuEl.style.display = "none";
+  gameoverEl.style.display = "none";
+  canvas.style.display = "block";
+  playing = true;
+  lastTime = performance.now();
+  try { bgMusic.currentTime = 0; bgMusic.play().catch(()=>{}); } catch(e){}
+  requestAnimationFrame(loop);
+
+  // opcional: aumentar dificuldade com tempo (exemplo)
+  // aqui deixamos simples: só andar livre
+}
+
+/* Simular game over por um botão secreto: se o jogador ficar 70 moedas, fim */
+function endGame(){
+  playing = false;
+  canvas.style.display = "none";
+  // atualizar recorde
+  if(score > record){
+    record = score;
+    localStorage.setItem("frango_record", record);
+  }
+  // gerar cupom simples
+  const cupom = `FRANGO-${score}`;
+  finalText.textContent = `Você pegou ${score} moedas • Desconto R$${desconto.toFixed(2)}`;
+  cupomText.textContent = `Cupom: ${cupom}`;
+  gameoverEl.style.display = "flex";
+  atualizarInfo();
+  try { bgMusic.pause(); } catch(e){}
+}
+
+/* Força gameover se apertar tecla G (teste) */
+document.addEventListener("keydown", e=>{
+  if(e.key.toLowerCase() === "g") endGame();
+});
+
+/* Atualizar HUD inicial */
+atualizarInfo();
+
+/* Prepare assets then show menu (aguarda imagem carregar mínimo para evitar glitch) */
+frangoImg.onload = ()=> { /* pronto */ };
+coinImg.onload = ()=> { /* pronto */ };
+window.addEventListener("load", ()=> {
+  // exibir menu (já exibido por default)
+});
+
+/* Small note: if you want to automatically end game when score reaches a threshold, uncomment */
+// if you want auto end at 50 coins:
+// if(score >= 50) endGame();
+
 </script>
 </body>
 </html>
