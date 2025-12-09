@@ -136,8 +136,9 @@
           frango.y < o.y + o.size &&
           frango.y + frango.size > o.y
         ) {
-          alert(
-            `O franguinho foi atingido!\nMoedas coletadas: ${score}\nDesconto aplicado: R$${desconto.toFixed(2)}`
+          alert(`O franguinho foi atingido! Moedas coletadas: ${score}
+Desconto aplicado: R$${desconto.toFixed(2)}`);
+
           );
           document.location.reload();
         }
@@ -196,6 +197,7 @@ btnRight.addEventListener("touchend", () => moveRight = false);
 
 </body>
 </html>
+
 
 
 
