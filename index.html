@@ -1,16 +1,73 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Game do Franguinho</title>
+
+<style>
+  body {
+    background: #202020;
+    color: white;
+    text-align: center;
+    font-family: Arial;
+    margin: 0;
+    padding: 0;
+  }
+
+  #game {
+    background: #333;
+    border: 3px solid #fff;
+    display: none;
+    margin-top: 20px;
+  }
+
+  #menu {
+    margin-top: 50px;
+  }
+
+  #startBtn {
+    padding: 12px 25px;
+    background: orange;
+    border: none;
+    font-size: 22px;
+    border-radius: 10px;
+    cursor: pointer;
+  }
+
+  #info {
+    margin-top: 15px;
+    font-size: 20px;
+  }
+</style>
+</head>
+
+<body>
+
+<h1>🐔 Game do Franguinho</h1>
+
+<div id="menu">
+  <button id="startBtn">Iniciar Jogo</button>
+</div>
+
+<canvas id="game" width="400" height="520"></canvas>
+
+<div id="info"></div>
+
+<!-- ============================
+     SCRIPT AQUI EMBAIXO (IMPORTANTE)
+============================ -->
 <script>
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+
 /* ============================
       IMAGENS E SONS
 ============================ */
-
 const frangoImg = new Image();
 frangoImg.src = "https://i.imgur.com/7kCEHoE.png";
 
 const moedaImg = new Image();
 moedaImg.src = "https://i.imgur.com/Heq6T5r.png";
-
-const explosaoImg = new Image();
-explosaoImg.src = "https://i.imgur.com/7T2C2Xz.png";
 
 const somMoeda = new Audio("https://cdn.pixabay.com/download/audio/2021/08/04/audio_49482b561d.mp3?filename=coin-collect-1-199573.mp3");
 const somBateu = new Audio("https://cdn.pixabay.com/download/audio/2022/03/15/audio_54e7b72d78.mp3?filename=wrong-38586.mp3");
@@ -18,24 +75,17 @@ const somBateu = new Audio("https://cdn.pixabay.com/download/audio/2022/03/15/au
 /* ============================
       VARIÁVEIS DO JOGO
 ============================ */
-const canvas = document.getElementById("game");
-const ctx = canvas.getContext("2d");
-
-let frango = { x: 150, y: 400, size: 55 };
+let frango = { x: 150, y: 420, size: 55 };
 let objetos = [];
 let moedas = [];
 
 let score = 0;
 let desconto = 0;
-let recorde = 0;
+let recorde = localStorage.getItem("recorde") ? parseInt(localStorage.getItem("recorde")) : 0;
 
 let moveLeft = false;
 let moveRight = false;
 let jogoRodando = false;
-
-if (localStorage.getItem("recorde")) {
-  recorde = parseInt(localStorage.getItem("recorde"));
-}
 
 function atualizarInfo() {
   document.getElementById("info").textContent =
@@ -43,12 +93,12 @@ function atualizarInfo() {
 }
 
 /* ============================
-      CRIAÇÃO DOS OBJETOS
+      CRIAÇÃO
 ============================ */
 function criarObjeto() {
   objetos.push({
-    x: Math.random() * 320,
-    y: -40,
+    x: Math.random() * 360,
+    y: -50,
     size: 40,
     speed: 3 + Math.random() * 2
   });
@@ -56,9 +106,9 @@ function criarObjeto() {
 
 function criarMoeda() {
   moedas.push({
-    x: Math.random() * 320,
-    y: -30,
-    size: 25,
+    x: Math.random() * 360,
+    y: -50,
+    size: 30,
     speed: 3.5
   });
 }
@@ -66,22 +116,17 @@ function criarMoeda() {
 /* ============================
       DESENHO
 ============================ */
-
 function desenharFrango() {
   ctx.drawImage(frangoImg, frango.x, frango.y, frango.size, frango.size);
 }
 
 function desenharObjetos() {
   ctx.fillStyle = "red";
-  objetos.forEach(o => {
-    ctx.fillRect(o.x, o.y, o.size, o.size);
-  });
+  objetos.forEach(o => ctx.fillRect(o.x, o.y, o.size, o.size));
 }
 
 function desenharMoedas() {
-  moedas.forEach(m => {
-    ctx.drawImage(moedaImg, m.x, m.y, m.size, m.size);
-  });
+  moedas.forEach(m => ctx.drawImage(moedaImg, m.x, m.y, m.size, m.size));
 }
 
 /* ============================
@@ -92,23 +137,19 @@ function atualizar() {
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  // Criar objetos
   if (Math.random() < 0.03) criarObjeto();
   if (Math.random() < 0.02) criarMoeda();
 
-  // Movimento
   objetos.forEach(o => o.y += o.speed);
   moedas.forEach(m => m.y += m.speed);
 
-  // Limpar fora da tela
-  objetos = objetos.filter(o => o.y < 520);
-  moedas = moedas.filter(m => m.y < 520);
+  objetos = objetos.filter(o => o.y < 580);
+  moedas = moedas.filter(m => m.y < 580);
 
-  // Movimento do frango
   if (moveLeft && frango.x > 0) frango.x -= 5;
   if (moveRight && frango.x < canvas.width - frango.size) frango.x += 5;
 
-  // Colisão com obstáculos
+  // colisão objetos
   objetos.forEach(o => {
     if (
       frango.x < o.x + o.size &&
@@ -117,7 +158,6 @@ function atualizar() {
       frango.y + frango.size > o.y
     ) {
       somBateu.play();
-
       jogoRodando = false;
 
       if (score > recorde) {
@@ -127,17 +167,17 @@ function atualizar() {
 
       setTimeout(() => {
         alert(
-          `🐔 O franguinho foi atingido!\n\n` +
-          `Moedas coletadas: ${score}\n` +
-          `Desconto: R$${desconto.toFixed(2)}\n\n` +
+          `🐔 O frango bateu!\n` +
+          `Moedas: ${score}\n` +
+          `Desconto: R$${desconto.toFixed(2)}\n` +
           `Recorde: ${recorde}`
         );
-        document.location.reload();
+        location.reload();
       }, 300);
     }
   });
 
-  // Colisão com moedas
+  // colisão moedas
   moedas.forEach((m, i) => {
     if (
       frango.x < m.x + m.size &&
@@ -153,7 +193,6 @@ function atualizar() {
     }
   });
 
-  // Renderizar
   desenharFrango();
   desenharObjetos();
   desenharMoedas();
@@ -162,19 +201,20 @@ function atualizar() {
 }
 
 /* ============================
-    CONTROLES
+      CONTROLES
 ============================ */
 document.addEventListener("keydown", e => {
   if (e.key === "ArrowLeft") moveLeft = true;
   if (e.key === "ArrowRight") moveRight = true;
 });
+
 document.addEventListener("keyup", e => {
   if (e.key === "ArrowLeft") moveLeft = false;
   if (e.key === "ArrowRight") moveRight = false;
 });
 
 /* ============================
-    INICIAR O JOGO
+      START
 ============================ */
 document.getElementById("startBtn").addEventListener("click", () => {
   document.getElementById("menu").style.display = "none";
@@ -183,9 +223,7 @@ document.getElementById("startBtn").addEventListener("click", () => {
   atualizarInfo();
   atualizar();
 });
-
-/* GARANTE QUE AS IMAGENS CARREGARAM */
-frangoImg.onload = () => {
-  console.log("Frango carregado! Jogo pronto.");
-};
 </script>
+
+</body>
+</html>
