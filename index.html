@@ -2,227 +2,142 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<title>Franguinho Runner</title>
+<title>Franguinho Runner Simples</title>
 <style>
   body {
-    background: #222;
     margin: 0;
+    background: #222;
     display: flex;
     flex-direction: column;
     align-items: center;
+    font-family: Arial, sans-serif;
     color: white;
-    font-family: Arial;
   }
-
-  #menu {
+  canvas {
+    background: #333;
+    display: block;
     margin-top: 20px;
-    text-align: center;
+    border: 2px solid #fff;
   }
-
-  #game {
-    background: #111;
-    border: 3px solid #fff;
+  #score {
     margin-top: 10px;
-    display: none;
-  }
-
-  #info {
-    margin-top: 10px;
-    font-size: 18px;
-  }
-
-  #controles {
-    margin-top: 20px;
-    display: none;
-  }
-
-  .btn {
-    padding: 12px 30px;
-    background: orange;
-    margin: 5px;
-    color: #000;
-    border-radius: 8px;
     font-size: 20px;
-    font-weight: bold;
-    cursor: pointer;
   }
 </style>
 </head>
 <body>
-
-<h1>🐔 Franguinho Runner</h1>
-
-<div id="menu">
-  <button id="startBtn" class="btn">Iniciar Jogo</button>
-</div>
-
-<canvas id="game" width="360" height="500"></canvas>
-
-<div id="info">Moedas: 0 | Desconto: R$0.00 | Recorde: 0</div>
-
-<div id="controles">
-  <button class="btn" id="leftBtn">⬅️</button>
-  <button class="btn" id="rightBtn">➡️</button>
-</div>
+<h1>Franguinho Runner</h1>
+<canvas id="game" width="600" height="400"></canvas>
+<div id="score">Pontuação: 0 | Desconto: R$0.00</div>
 
 <script>
-/* ============================
-      IMAGENS EMBUTIDAS
-      (SEM ERROS DE LINK)
-============================ */
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
 
-// FRANGO
-const frangoImg = new Image();
-frangoImg.src =
-"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAACl..."  // <-- base64 aqui
+let frango = { x: 50, y: 300, width: 50, height: 50, dy: 0 };
+let gravidade = 0.8;
+let pulo = -12;
 
-// MOEDA
-const moedaImg = new Image();
-moedaImg.src =
-"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAACl..."  // <-- base64 aqui
-
-// OBSTÁCULO
-const obstImg = new Image();
-obstImg.src =
-"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAACl..."  // <-- base64 aqui
-
-
-/* ============================
-      VARIÁVEIS DO JOGO
-============================ */
-const canvas = document.getElementById("game");
-const ctx = canvas.getContext("2d");
-
-let frango = { x: 150, y: 420, size: 60 };
 let moedas = [];
-let obstáculos = [];
+let obstaculos = [];
 let score = 0;
-let desconto = 0;
-let recorde = parseInt(localStorage.getItem("rec")) || 0;
+let gameOver = false;
 
-let esquerda = false;
-let direita = false;
-let rodando = false;
-
-document.getElementById("info").innerText =
-`Moedas: 0 | Desconto: R$0.00 | Recorde: ${recorde}`;
-
-/* ============================
-      CRIAR OBJETOS
-============================ */
-function criarMoeda() {
-  moedas.push({
-    x: Math.random() * 330,
-    y: -20,
-    size: 30,
-    speed: 3
-  });
-}
-
-function criarObstaculo() {
-  obstáculos.push({
-    x: Math.random() * 330,
-    y: -20,
-    size: 40,
-    speed: 3
-  });
-}
-
-/* ============================
-      LOOP PRINCIPAL
-============================ */
-function atualizar() {
-  if (!rodando) return;
-
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-  if (Math.random() < 0.03) criarMoeda();
-  if (Math.random() < 0.04) criarObstaculo();
-
-  moedas.forEach(m => m.y += m.speed);
-  obstáculos.forEach(o => o.y += o.speed);
-
-  moedas = moedas.filter(m => m.y < 600);
-  obstáculos = obstáculos.filter(o => o.y < 600);
-
-  if (esquerda && frango.x > 0) frango.x -= 5;
-  if (direita && frango.x < 300) frango.x += 5;
-
-  // desenhar frango
-  ctx.drawImage(frangoImg, frango.x, frango.y, frango.size, frango.size);
-
-  // desenhar moedas
-  moedas.forEach(m => {
-    ctx.drawImage(moedaImg, m.x, m.y, m.size, m.size);
-
-    // colisão
-    if (
-      frango.x < m.x + m.size &&
-      frango.x + frango.size > m.x &&
-      frango.y < m.y + m.size &&
-      frango.y + frango.size > m.y
-    ) {
-      score++;
-      desconto = score * 0.10;
-      moedas.splice(moedas.indexOf(m), 1);
-
-      document.getElementById("info").innerText =
-      `Moedas: ${score} | Desconto: R$${desconto.toFixed(2)} | Recorde: ${recorde}`;
+document.addEventListener('keydown', e => {
+    if(e.code === 'Space' && !gameOver){
+        frango.dy = pulo;
+    } else if(e.code === 'Space' && gameOver){
+        restartGame();
     }
-  });
+});
 
-  // desenhar obstáculos
-  obstáculos.forEach(o => {
-    ctx.drawImage(obstImg, o.x, o.y, o.size, o.size);
-
-    if (
-      frango.x < o.x + o.size &&
-      frango.x + frango.size > o.x &&
-      frango.y < o.y + o.size &&
-      frango.y + frango.size > o.y
-    ) {
-      rodando = false;
-
-      if (score > recorde) {
-        recorde = score;
-        localStorage.setItem("rec", recorde);
-      }
-
-      alert(`🐔 O franguinho bateu!\n\nMoedas: ${score}\nDesconto: R$${desconto.toFixed(2)}`);
-
-      location.reload();
-    }
-  });
-
-  requestAnimationFrame(atualizar);
+function spawnMoeda() {
+    moedas.push({
+        x: canvas.width,
+        y: Math.random() * (canvas.height - 30),
+        width: 30,
+        height: 30
+    });
 }
 
-/* ============================
-      CONTROLES
-============================ */
-document.addEventListener("keydown", e => {
-  if (e.key === "ArrowLeft") esquerda = true;
-  if (e.key === "ArrowRight") direita = true;
-});
-document.addEventListener("keyup", e => {
-  if (e.key === "ArrowLeft") esquerda = false;
-  if (e.key === "ArrowRight") direita = false;
-});
+function spawnObstaculo() {
+    obstaculos.push({
+        x: canvas.width,
+        y: canvas.height - 50,
+        width: 50,
+        height: 50
+    });
+}
 
-document.getElementById("leftBtn").onclick = () => esquerda = true;
-document.getElementById("rightBtn").onclick = () => direita = true;
+function restartGame() {
+    moedas = [];
+    obstaculos = [];
+    score = 0;
+    frango.y = 300;
+    frango.dy = 0;
+    gameOver = false;
+    updateScore();
+}
 
-/* ============================
-      INICIAR JOGO
-============================ */
-document.getElementById("startBtn").addEventListener("click", () => {
-  document.getElementById("menu").style.display = "none";
-  document.getElementById("controles").style.display = "block";
-  canvas.style.display = "block";
-  rodando = true;
-  atualizar();
-});
+function updateScore() {
+    let desconto = (score * 0.10).toFixed(2);
+    document.getElementById('score').innerText = "Pontuação: " + score + " | Desconto: R$" + desconto;
+}
+
+function update() {
+    if(gameOver) return;
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Frango (retângulo amarelo)
+    frango.dy += gravidade;
+    frango.y += frango.dy;
+    if(frango.y + frango.height > canvas.height) {
+        frango.y = canvas.height - frango.height;
+        frango.dy = 0;
+    }
+    ctx.fillStyle = "yellow";
+    ctx.fillRect(frango.x, frango.y, frango.width, frango.height);
+
+    // Moedas (círculos dourados)
+    moedas.forEach((m, i) => {
+        m.x -= 4;
+        ctx.fillStyle = "gold";
+        ctx.beginPath();
+        ctx.arc(m.x + m.width/2, m.y + m.height/2, m.width/2, 0, Math.PI*2);
+        ctx.fill();
+        // colisão
+        if(frango.x < m.x + m.width && frango.x + frango.width > m.x &&
+           frango.y < m.y + m.height && frango.y + frango.height > m.y) {
+            moedas.splice(i, 1);
+            score += 1;
+            updateScore();
+        }
+        if(m.x + m.width < 0) moedas.splice(i,1);
+    });
+
+    // Obstáculos (quadrado vermelho)
+    obstaculos.forEach((o, i) => {
+        o.x -= 6;
+        ctx.fillStyle = "red";
+        ctx.fillRect(o.x, o.y, o.width, o.height);
+        // colisão
+        if(frango.x < o.x + o.width && frango.x + frango.width > o.x &&
+           frango.y < o.y + o.height && frango.y + frango.height > o.y) {
+            gameOver = true;
+            alert("Game Over! Pontuação: " + score + " | Desconto: R$" + (score*0.10).toFixed(2) + "\nPressione Espaço para reiniciar.");
+        }
+        if(o.x + o.width < 0) obstaculos.splice(i,1);
+    });
+
+    requestAnimationFrame(update);
+}
+
+// Spawn aleatório
+setInterval(() => { if(!gameOver) spawnMoeda(); }, 2000);
+setInterval(() => { if(!gameOver) spawnObstaculo(); }, 3000);
+
+update();
 </script>
-
 </body>
 </html>
