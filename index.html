@@ -1,188 +1,124 @@
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-<meta charset="UTF-8">
-<title>Franguinho Runner</title>
-<style>
-  body {
-    margin: 0;
-    background: #222;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    font-family: Arial, sans-serif;
-    color: white;
-  }
-  canvas {
-    background: #333;
-    display: block;
-    margin-top: 20px;
-    border: 2px solid #fff;
-  }
-  #score {
-    margin-top: 10px;
-    font-size: 20px;
-  }
-  .btn {
-    margin: 5px;
-    padding: 10px 20px;
-    font-size: 16px;
-    cursor: pointer;
-    border: none;
-    border-radius: 5px;
-    background-color: #ff9900;
-    color: #fff;
-  }
-  #startScreen {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    margin-top: 50px;
-  }
-</style>
-</head>
-<body>
+import pygame
+import sys
 
-<div id="startScreen">
-  <h1>Franguinho Runner</h1>
-  <button class="btn" id="startBtn">Iniciar Jogo</button>
-</div>
+pygame.init()
 
-<canvas id="game" width="600" height="400" style="display:none;"></canvas>
-<div id="score" style="display:none;">Pontuação: 0 | Desconto: R$0.00</div>
+# ---------------- CONFIGURAÇÕES ---------------- #
+LARGURA = 800
+ALTURA = 600
+TELA = pygame.display.set_mode((LARGURA, ALTURA))
+pygame.display.set_caption("Jogo do Franguinho")
 
-<div id="controls" style="display:none;">
-  <button class="btn" id="jumpBtn">Pular</button>
-  <button class="btn" id="restartBtn">Reiniciar</button>
-</div>
+FPS = 60
+clock = pygame.time.Clock()
 
-<script>
-const canvas = document.getElementById('game');
-const ctx = canvas.getContext('2d');
+# ---------------- CORES ---------------- #
+BRANCO = (255, 255, 255)
+PRETO = (0, 0, 0)
+LARANJA = (255, 140, 0)
+AMARELO = (255, 220, 100)
+VERMELHO = (220, 40, 40)
+CINZA = (180, 180, 180)
 
-let frango = { x: 50, y: 300, width: 50, height: 50, dy: 0 };
-let gravidade = 0.8;
-let pulo = -12;
+# ---------------- PERSONAGEM (FRANGUINHO) ---------------- #
+player = pygame.Rect(380, 500, 40, 40)
+vel_x = 5
+vel_y = 0
+gravidade = 1
+no_chao = True
 
-let moedas = [];
-let obstaculos = [];
-let score = 0;
-let gameOver = false;
-let jogoIniciado = false;
+# ---------------- BOTÕES ---------------- #
+btn_inicio = pygame.Rect(300, 250, 200, 80)
 
-// --- CONTROLES ---
-document.getElementById('jumpBtn').addEventListener('click', () => {
-    if(!gameOver) frango.dy = pulo;
-});
-document.getElementById('restartBtn').addEventListener('click', () => {
-    restartGame();
-});
+btn_esquerda = pygame.Rect(50, 520, 80, 50)
+btn_direita = pygame.Rect(150, 520, 80, 50)
+btn_pular = pygame.Rect(650, 520, 80, 50)
 
-// --- BOTÃO INICIAR ---
-document.getElementById('startBtn').addEventListener('click', () => {
-    document.getElementById('startScreen').style.display = 'none';
-    canvas.style.display = 'block';
-    document.getElementById('score').style.display = 'block';
-    document.getElementById('controls').style.display = 'block';
-    jogoIniciado = true;
-    update();
-});
+tela_inicial = True
 
-// Teclas também funcionam
-document.addEventListener('keydown', e => {
-    if(e.code === 'Space' && !gameOver && jogoIniciado){
-        frango.dy = pulo;
-    } else if(e.code === 'Space' && gameOver){
-        restartGame();
-    }
-});
+# ---------------- FUNÇÃO PRA DESENHAR O FRANGUINHO ---------------- #
+def desenhar_frango(surface, x, y):
+    # Corpo
+    pygame.draw.circle(surface, AMARELO, (x + 20, y + 20), 20)
 
-// --- FUNÇÕES ---
-function spawnMoeda() {
-    moedas.push({
-        x: canvas.width,
-        y: Math.random() * (canvas.height - 30),
-        width: 30,
-        height: 30
-    });
-}
+    # Olho
+    pygame.draw.circle(surface, PRETO, (x + 28, y + 15), 4)
 
-function spawnObstaculo() {
-    obstaculos.push({
-        x: canvas.width,
-        y: canvas.height - 50,
-        width: 50,
-        height: 50
-    });
-}
+    # Bico
+    pygame.draw.polygon(surface, LARANJA, [
+        (x + 35, y + 20),
+        (x + 48, y + 24),
+        (x + 35, y + 28)
+    ])
 
-function restartGame() {
-    moedas = [];
-    obstaculos = [];
-    score = 0;
-    frango.y = 300;
-    frango.dy = 0;
-    gameOver = false;
-    updateScore();
-    if(!jogoIniciado) return;
-    update();
-}
+    # Crista
+    pygame.draw.circle(surface, VERMELHO, (x + 10, y + 5), 6)
+    pygame.draw.circle(surface, VERMELHO, (x + 16, y + 2), 5)
 
-function updateScore() {
-    let desconto = (score * 0.10).toFixed(2);
-    document.getElementById('score').innerText = "Pontuação: " + score + " | Desconto: R$" + desconto;
-}
+# ---------------- LOOP PRINCIPAL ---------------- #
+while True:
+    clock.tick(FPS)
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            pygame.quit()
+            sys.exit()
 
-function update() {
-    if(gameOver) return;
+        # --- CLIQUES ---
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            mx, my = pygame.mouse.get_pos()
 
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+            # Iniciar jogo
+            if tela_inicial and btn_inicio.collidepoint(mx, my):
+                tela_inicial = False
 
-    // Frango (retângulo amarelo)
-    frango.dy += gravidade;
-    frango.y += frango.dy;
-    if(frango.y + frango.height > canvas.height) {
-        frango.y = canvas.height - frango.height;
-        frango.dy = 0;
-    }
-    ctx.fillStyle = "yellow";
-    ctx.fillRect(frango.x, frango.y, frango.width, frango.height);
+            if not tela_inicial:
+                # Botão esquerda
+                if btn_esquerda.collidepoint(mx, my):
+                    player.x -= vel_x
 
-    // Moedas
-    moedas.forEach((m, i) => {
-        m.x -= 4;
-        ctx.fillStyle = "gold";
-        ctx.beginPath();
-        ctx.arc(m.x + m.width/2, m.y + m.height/2, m.width/2, 0, Math.PI*2);
-        ctx.fill();
-        if(frango.x < m.x + m.width && frango.x + frango.width > m.x &&
-           frango.y < m.y + m.height && frango.y + frango.height > m.y) {
-            moedas.splice(i, 1);
-            score += 1;
-            updateScore();
-        }
-        if(m.x + m.width < 0) moedas.splice(i,1);
-    });
+                # Botão direita
+                if btn_direita.collidepoint(mx, my):
+                    player.x += vel_x
 
-    // Obstáculos
-    obstaculos.forEach((o, i) => {
-        o.x -= 6;
-        ctx.fillStyle = "red";
-        ctx.fillRect(o.x, o.y, o.width, o.height);
-        if(frango.x < o.x + o.width && frango.x + frango.width > o.x &&
-           frango.y < o.y + o.height && frango.y + frango.height > o.y) {
-            gameOver = true;
-            alert("Game Over! Pontuação: " + score + " | Desconto: R$" + (score*0.10).toFixed(2));
-        }
-        if(o.x + o.width < 0) obstaculos.splice(i,1);
-    });
+                # Botão pular
+                if btn_pular.collidepoint(mx, my) and no_chao:
+                    vel_y = -15
+                    no_chao = False
 
-    requestAnimationFrame(update);
-}
+    # ---------------- TELA INICIAL ---------------- #
+    if tela_inicial:
+        TELA.fill(BRANCO)
+        pygame.draw.rect(TELA, AMARELO, btn_inicio)
+        font = pygame.font.SysFont(None, 40)
+        txt = font.render("INICIAR", True, PRETO)
+        TELA.blit(txt, (btn_inicio.x + 50, btn_inicio.y + 25))
 
-// Spawn aleatório
-setInterval(() => { if(!gameOver && jogoIniciado) spawnMoeda(); }, 2000);
-setInterval(() => { if(!gameOver && jogoIniciado) spawnObstaculo(); }, 3000);
-</script>
-</body>
-</html>
+        pygame.display.update()
+        continue
+
+    # ---------------- FÍSICA DO JOGADOR ---------------- #
+    vel_y += gravidade
+    player.y += vel_y
+
+    if player.y >= 500:
+        player.y = 500
+        vel_y = 0
+        no_chao = True
+
+    # ---------------- DESENHO DO JOGO ---------------- #
+    TELA.fill(BRANCO)
+
+    # Franguinho
+    desenhar_frango(TELA, player.x, player.y)
+
+    # Botões
+    pygame.draw.rect(TELA, CINZA, btn_esquerda)
+    pygame.draw.rect(TELA, CINZA, btn_direita)
+    pygame.draw.rect(TELA, CINZA, btn_pular)
+
+    font = pygame.font.SysFont(None, 30)
+    TELA.blit(font.render("←", True, PRETO), (btn_esquerda.x + 30, btn_esquerda.y + 10))
+    TELA.blit(font.render("→", True, PRETO), (btn_direita.x + 30, btn_direita.y + 10))
+    TELA.blit(font.render("PULAR", True, PRETO), (btn_pular.x + 10, btn_pular.y + 10))
+
+    pygame.display.update()
