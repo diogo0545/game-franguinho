@@ -1,263 +1,125 @@
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-<meta charset="UTF-8">
-<title>Franguinho Runner</title>
+import pygame
+import sys
 
-<style>
-  body {
-    margin: 0;
-    background: #1a1a1a;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    font-family: Arial;
-    color: white;
-    overflow: hidden;
-  }
+pygame.init()
 
-  h1 {
-    margin-top: 10px;
-  }
+# ---------------- CONFIGURAÇÃO DA TELA (adaptação automática) ---------------- #
+info = pygame.display.Info()
+LARGURA = info.current_w
+ALTURA = info.current_h
 
-  #game {
-    background: #000;
-    border: 3px solid white;
-    display: none;
-    position: relative;
-    z-index: 5;
-  }
+# Limita mínimo para PC
+if LARGURA < 800:
+    LARGURA = 800
+if ALTURA < 600:
+    ALTURA = 600
 
-  #startBtn {
-    padding: 16px 40px;
-    background: orange;
-    color: black;
-    border-radius: 12px;
-    font-size: 28px;
-    font-weight: bold;
-    margin-top: 20px;
-    cursor: pointer;
-    z-index: 20;
-    position: relative;
-  }
+TELA = pygame.display.set_mode((LARGURA, ALTURA))
+pygame.display.set_caption("Jogo do Franguinho")
 
-  #info {
-    margin-top: 10px;
-    font-size: 22px;
-  }
+FPS = 60
+clock = pygame.time.Clock()
 
-  /* BOTÕES MOBILE GRANDÕES */
-  #controles {
-    width: 100%;
-    margin-top: 20px;
-    justify-content: space-around;
-    display: none; /* AGORA FUNCIONA */
-    z-index: 10;
-  }
+# ---------------- CORES ---------------- #
+BRANCO = (255, 255, 255)
+PRETO = (0, 0, 0)
+LARANJA = (255, 140, 0)
+AMARELO = (255, 220, 100)
+VERMELHO = (220, 40, 40)
+CINZA = (180, 180, 180)
 
-  .btn {
-    background: orange;
-    padding: 20px 40px;
-    font-size: 40px;
-    border-radius: 12px;
-    color: black;
-    font-weight: bold;
-    user-select: none;
-  }
+# ---------------- PERSONAGEM ---------------- #
+player = pygame.Rect(LARGURA // 2 - 20, ALTURA - 120, 50, 50)
+vel_x = 12  # MAIS RÁPIDO PARA CELULAR
+vel_y = 0
+gravidade = 1
+no_chao = True
 
-  @media (max-width: 768px) {
-    #game {
-      width: 90vw !important;
-      height: calc(90vh - 200px) !important;
-    }
+# ---------------- BOTÕES (AGORA GIGANTES) ---------------- #
+btn_inicio = pygame.Rect(LARGURA//2 - 200, ALTURA//2 - 150, 400, 200)
 
-    .btn {
-      padding: 25px 50px;
-      font-size: 48px;
-    }
+btn_esquerda = pygame.Rect(50, ALTURA - 180, 200, 150)
+btn_direita = pygame.Rect(270, ALTURA - 180, 200, 150)
+btn_pular = pygame.Rect(LARGURA - 250, ALTURA - 180, 200, 150)
 
-    #startBtn {
-      font-size: 34px;
-      padding: 20px 50px;
-    }
+tela_inicial = True
 
-    #info {
-      font-size: 26px;
-    }
-  }
-</style>
-</head>
-<body>
+# ---------------- DESENHAR FRANGUINHO ---------------- #
+def desenhar_frango(surface, x, y):
+    pygame.draw.circle(surface, AMARELO, (x + 25, y + 25), 25)
+    pygame.draw.circle(surface, PRETO, (x + 32, y + 18), 5)
+    pygame.draw.polygon(surface, LARANJA, [
+        (x + 45, y + 25),
+        (x + 60, y + 30),
+        (x + 45, y + 35)
+    ])
+    pygame.draw.circle(surface, VERMELHO, (x + 15, y + 5), 8)
+    pygame.draw.circle(surface, VERMELHO, (x + 22, y + 3), 6)
 
-<h1>🐔 Franguinho Runner</h1>
+# ---------------- LOOP PRINCIPAL ---------------- #
+while True:
+    clock.tick(FPS)
 
-<button id="startBtn">INICIAR</button>
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            pygame.quit()
+            sys.exit()
 
-<canvas id="game" width="360" height="600"></canvas>
+        # CLICK
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            mx, my = pygame.mouse.get_pos()
 
-<div id="info">Moedas: 0 | Desconto: R$0.00 | Recorde: 0</div>
+            # INICIAR JOGO
+            if tela_inicial and btn_inicio.collidepoint(mx, my):
+                tela_inicial = False
 
-<div id="controles">
-  <div class="btn" id="leftBtn">⬅️</div>
-  <div class="btn" id="rightBtn">➡️</div>
-</div>
+            # CONTROLES
+            if not tela_inicial:
+                if btn_esquerda.collidepoint(mx, my):
+                    player.x -= vel_x
+                if btn_direita.collidepoint(mx, my):
+                    player.x += vel_x
+                if btn_pular.collidepoint(mx, my) and no_chao:
+                    vel_y = -18
+                    no_chao = False
 
-<script>
-/* ===========================
-   IMAGENS Base64
-================================ */
-const frangoImg = new Image();
-frangoImg.src =
-"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAA8AAAAQCAYAAADJViUEAAAACXBIWXMAAAsTAAALEwEAmpwYAAAAIElEQVR4nGP8z4APMOGVH8MwCjAyYMQA0yYEgRDIozGMAADQNgH4WfF42QAAAABJRU5ErkJggg==";
+    # ---------------- TELA INICIAL ---------------- #
+    if tela_inicial:
+        TELA.fill(BRANCO)
+        pygame.draw.rect(TELA, AMARELO, btn_inicio, border_radius=40)
 
-const moedaImg = new Image();
-moedaImg.src =
-"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAA8AAAAQCAYAAADJViUEAAAACXBIWXMAAAsTAAALEwEAmpwYAAAAK0lEQVR4nGNkYGBg+A8EwDiqgWFWoGgGm0BxiGwGDFgBiIdA60CAO0sB9bctRHYAAAAASUVORK5CYII=";
+        font = pygame.font.SysFont(None, 90)
+        txt = font.render("INICIAR", True, PRETO)
+        TELA.blit(txt, (btn_inicio.x + 80, btn_inicio.y + 70))
 
-const obstImg = new Image();
-obstImg.src =
-"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAA8AAAAQCAYAAADJViUEAAAACXBIWXMAAAsTAAALEwEAmpwYAAAAKUlEQVR4nGNkYGBg+A9EwBiqgWFWoGgGm0BxSG4GDBgBiIdA6wEAAJ/xB6OVYo7QAAAAASUVORK5CYII=";
+        pygame.display.update()
+        continue
 
-/* ===========================
-   VARIÁVEIS DO JOGO
-================================ */
-const canvas = document.getElementById("game");
-const ctx = canvas.getContext("2d");
+    # ---------------- FÍSICA ---------------- #
+    vel_y += gravidade
+    player.y += vel_y
 
-let frango = { x: 150, y: 500, size: 60 };
-let moedas = [];
-let obst = [];
+    # Colisão com o chão
+    chao = ALTURA - 200
+    if player.y >= chao:
+        player.y = chao
+        vel_y = 0
+        no_chao = True
 
-let score = 0;
-let desconto = 0;
-let recorde = localStorage.getItem("recorde") || 0;
+    # ---------------- DESENHO DO JOGO ---------------- #
+    TELA.fill(BRANCO)
 
-let esquerda = false;
-let direita = false;
-let rodando = false;
+    # Franguinho
+    desenhar_frango(TELA, player.x, player.y)
 
-/* ===========================
-   AJUSTE MOBILE
-================================ */
-function ajustarProporcao() {
-  if (window.innerWidth < 768) {
-    canvas.width = window.innerWidth * 0.9;
-    canvas.height = window.innerHeight * 0.7;
-    frango.size = canvas.width * 0.15;
-  }
-}
+    # Botões
+    pygame.draw.rect(TELA, CINZA, btn_esquerda, border_radius=30)
+    pygame.draw.rect(TELA, CINZA, btn_direita, border_radius=30)
+    pygame.draw.rect(TELA, CINZA, btn_pular, border_radius=30)
 
-ajustarProporcao();
-window.onresize = ajustarProporcao;
+    font = pygame.font.SysFont(None, 70)
+    TELA.blit(font.render("←", True, PRETO), (btn_esquerda.x + 75, btn_esquerda.y + 45))
+    TELA.blit(font.render("→", True, PRETO), (btn_direita.x + 75, btn_direita.y + 45))
+    TELA.blit(font.render("PULAR", True, PRETO), (btn_pular.x + 25, btn_pular.y + 45))
 
-/* ===========================
-   OBJETOS
-================================ */
-function criarMoeda() {
-  moedas.push({
-    x: Math.random() * (canvas.width - 40),
-    y: -30,
-    size: frango.size * 0.6,
-    speed: 4
-  });
-}
-
-function criarObst() {
-  obst.push({
-    x: Math.random() * (canvas.width - 40),
-    y: -40,
-    size: frango.size * 0.8,
-    speed: 5
-  });
-}
-
-/* ===========================
-   LOOP
-================================ */
-function atualizar() {
-  if (!rodando) return;
-
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-  if (Math.random() < 0.04) criarMoeda();
-  if (Math.random() < 0.03) criarObst();
-
-  if (esquerda && frango.x > 0) frango.x -= 6;
-  if (direita && frango.x < canvas.width - frango.size) frango.x += 6;
-
-  ctx.drawImage(frangoImg, frango.x, frango.y, frango.size, frango.size);
-
-  moedas.forEach((m) => {
-    m.y += m.speed;
-    ctx.drawImage(moedaImg, m.x, m.y, m.size, m.size);
-
-    if (
-      frango.x < m.x + m.size &&
-      frango.x + frango.size > m.x &&
-      frango.y < m.y + m.size &&
-      frango.y + frango.size > m.y
-    ) {
-      score++;
-      desconto = score * 0.10;
-      moedas.splice(moedas.indexOf(m), 1);
-    }
-  });
-
-  obst.forEach((o) => {
-    o.y += o.speed;
-    ctx.drawImage(obstImg, o.x, o.y, o.size, o.size);
-
-    if (
-      frango.x < o.x + o.size &&
-      frango.x + frango.size > o.x &&
-      frango.y < o.y + o.size &&
-      frango.y + frango.size > o.y
-    ) {
-      rodando = false;
-      if (score > recorde) {
-        recorde = score;
-        localStorage.setItem("recorde", recorde);
-      }
-      alert(`🐔 O Franguinho bateu!\nMoedas: ${score}\nDesconto: R$${desconto.toFixed(2)}`);
-      location.reload();
-    }
-  });
-
-  document.getElementById("info").innerText =
-    `Moedas: ${score} | Desconto: R$${desconto.toFixed(2)} | Recorde: ${recorde}`;
-
-  requestAnimationFrame(atualizar);
-}
-
-/* ===========================
-   CONTROLES
-================================ */
-document.addEventListener("keydown", e => {
-  if (e.key === "ArrowLeft") esquerda = true;
-  if (e.key === "ArrowRight") direita = true;
-});
-document.addEventListener("keyup", e => {
-  if (e.key === "ArrowLeft") esquerda = false;
-  if (e.key === "ArrowRight") direita = false;
-});
-
-document.getElementById("leftBtn").ontouchstart = () => esquerda = true;
-document.getElementById("leftBtn").ontouchend = () => esquerda = false;
-
-document.getElementById("rightBtn").ontouchstart = () => direita = true;
-document.getElementById("rightBtn").ontouchend = () => direita = false;
-
-/* ===========================
-   START
-================================ */
-document.getElementById("startBtn").onclick = () => {
-  document.getElementById("startBtn").style.display = "none";
-  document.getElementById("controles").style.display = "flex";
-  canvas.style.display = "block";
-  rodando = true;
-  atualizar();
-};
-</script>
-
-</body>
-</html>
+    pygame.display.update()
