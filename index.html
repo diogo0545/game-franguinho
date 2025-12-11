@@ -1,125 +1,284 @@
-import pygame
-import sys
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Franguinho Runner - Versão Estável</title>
+<style>
+  :root{ --accent:#ff9f43; --bg:#fff8f0; --dark:#1a1a1a }
+  html,body{height:100%;margin:0;background:var(--bg);font-family:Arial,Helvetica,sans-serif;color:var(--dark);-webkit-tap-highlight-color:transparent}
+  .wrap{max-width:720px;margin:0 auto;padding:12px;text-align:center}
+  h1{margin:8px 0}
+  /* Start grande e clicável */
+  #startBtn{
+    display:inline-block;
+    padding:18px 36px;
+    font-size:22px;
+    border-radius:12px;
+    background:var(--accent);
+    color:#000;
+    border:0;
+    cursor:pointer;
+    z-index:30;
+    position:relative;
+  }
+  #info{margin-top:10px;font-weight:700;color:#c45b00}
+  /* canvas - internal size controlled por JS; CSS garante responsivo */
+  #game{display:none;border-radius:12px;border:4px solid #ffb347;background:#fff;margin-top:12px;touch-action:none}
+  /* controles grandes mobile */
+  #controls{display:none;margin-top:14px;gap:28px;justify-content:center;align-items:center}
+  .ctl{background:var(--accent);border-radius:18px;padding:18px 26px;font-size:32px;border:0;cursor:pointer;user-select:none}
+  /* mobile adjustments */
+  @media (max-width:768px){
+    #startBtn{font-size:26px;padding:20px 46px}
+    .ctl{padding:24px 36px;font-size:40px}
+  }
+  /* gameover overlay */
+  #gameover{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);align-items:center;justify-content:center;z-index:40}
+  .panel{background:#fff;padding:18px;border-radius:12px;color:#111;min-width:260px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🐔 Franguinho Runner</h1>
+  <button id="startBtn">TOQUE PARA COMEÇAR</button>
+  <div id="info">Moedas: 0 | Desconto: R$0,00 | Recorde: 0</div>
+  <canvas id="game" width="360" height="640" aria-label="Jogo Franguinho"></canvas>
 
-pygame.init()
+  <div id="controls" aria-hidden="true">
+    <button id="leftBtn" class="ctl">⟵</button>
+    <button id="rightBtn" class="ctl">⟶</button>
+  </div>
+</div>
 
-# ---------------- CONFIGURAÇÃO DA TELA (adaptação automática) ---------------- #
-info = pygame.display.Info()
-LARGURA = info.current_w
-ALTURA = info.current_h
+<div id="gameover" aria-hidden="true">
+  <div class="panel">
+    <h2>GAME OVER</h2>
+    <div id="finalText"></div>
+    <div style="margin-top:10px"><button id="retry" class="ctl">Jogar de novo</button></div>
+  </div>
+</div>
 
-# Limita mínimo para PC
-if LARGURA < 800:
-    LARGURA = 800
-if ALTURA < 600:
-    ALTURA = 600
+<script>
+/* =========================
+  Config e utilitários
+   - Este arquivo é autossuficiente
+=========================*/
+const DPR = window.devicePixelRatio || 1;
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+const startBtn = document.getElementById('startBtn');
+const infoEl = document.getElementById('info');
+const controls = document.getElementById('controls');
+const leftBtn = document.getElementById('leftBtn');
+const rightBtn = document.getElementById('rightBtn');
+const gameoverEl = document.getElementById('gameover');
+const finalText = document.getElementById('finalText');
+const retryBtn = document.getElementById('retry');
 
-TELA = pygame.display.set_mode((LARGURA, ALTURA))
-pygame.display.set_caption("Jogo do Franguinho")
+let W = 360, H = 640;            // internal logical size (will be scaled)
+let running = false;
+let score = 0;
+let desconto = 0;
+let record = parseInt(localStorage.getItem('frango_record')||'0',10) || 0;
+let player = { x: 0, y: 0, w: 60, h: 60, speed: 6 };
+let coins = [], obstacles = [];
+let left = false, right = false;
 
-FPS = 60
-clock = pygame.time.Clock()
+/* Resize canvas to be responsive and crisp */
+function resizeCanvas(){
+  // Choose internal logical size relative to viewport while keeping ratio
+  const vw = Math.min(window.innerWidth, 720);
+  const vh = Math.max(window.innerHeight - 140, 420);
+  // Set CSS size
+  canvas.style.width = Math.round(vw) + 'px';
+  canvas.style.height = Math.round(vh) + 'px';
+  // Set backing store for crispness
+  const backingW = Math.round(vw * DPR);
+  const backingH = Math.round(vh * DPR);
+  if (canvas.width !== backingW || canvas.height !== backingH) {
+    canvas.width = backingW;
+    canvas.height = backingH;
+  }
+  // logical coordinates
+  W = canvas.width;
+  H = canvas.height;
+  // scale drawing operations
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+  // update player size proportionally
+  player.w = Math.max(36, Math.round((parseFloat(getComputedStyle(canvas).width) || vw) * 0.15));
+  player.h = player.w;
+  player.x = (parseFloat(getComputedStyle(canvas).width) || vw)/2 - player.w/2;
+  player.y = (parseFloat(getComputedStyle(canvas).height) || vh) - player.h - 20;
+}
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
 
-# ---------------- CORES ---------------- #
-BRANCO = (255, 255, 255)
-PRETO = (0, 0, 0)
-LARANJA = (255, 140, 0)
-AMARELO = (255, 220, 100)
-VERMELHO = (220, 40, 40)
-CINZA = (180, 180, 180)
+/* Utility: play simple beep (not required) */
+let audioCtx = null;
+function quickBeep(freq=880, dur=0.06){
+  try{
+    if(!audioCtx) audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+    const o = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    o.type='sine'; o.frequency.value = freq;
+    o.connect(g); g.connect(audioCtx.destination);
+    g.gain.value = 0.06;
+    o.start(); o.stop(audioCtx.currentTime + dur);
+  }catch(e){}
+}
 
-# ---------------- PERSONAGEM ---------------- #
-player = pygame.Rect(LARGURA // 2 - 20, ALTURA - 120, 50, 50)
-vel_x = 12  # MAIS RÁPIDO PARA CELULAR
-vel_y = 0
-gravidade = 1
-no_chao = True
+/* Draw simple chicken so no images needed */
+function drawChicken(x,y,w,h){
+  const r = w*0.45;
+  ctx.fillStyle='yellow';
+  ctx.beginPath();
+  ctx.ellipse(x + w/2, y + h/2, r, r*0.9,0,0,Math.PI*2);
+  ctx.fill();
+  // eye
+  ctx.fillStyle='black'; ctx.beginPath();
+  ctx.arc(x + w*0.65, y + h*0.38, Math.max(2, w*0.06),0,Math.PI*2); ctx.fill();
+  // beak
+  ctx.fillStyle='orange';
+  ctx.beginPath();
+  ctx.moveTo(x + w*0.85, y + h*0.45);
+  ctx.lineTo(x + w*0.98, y + h*0.50);
+  ctx.lineTo(x + w*0.85, y + h*0.55);
+  ctx.closePath(); ctx.fill();
+  // crest
+  ctx.fillStyle='red';
+  ctx.beginPath(); ctx.arc(x + w*0.22, y + h*0.18, Math.max(3,w*0.08),0,Math.PI*2); ctx.fill();
+}
 
-# ---------------- BOTÕES (AGORA GIGANTES) ---------------- #
-btn_inicio = pygame.Rect(LARGURA//2 - 200, ALTURA//2 - 150, 400, 200)
+/* Spawn helpers */
+function spawnCoin(){ coins.push({ x: Math.random()*(parseFloat(canvas.style.width)-40), y: -40, size: Math.max(18, player.w*0.45), speed: 3 + Math.random()*1.5 }); }
+function spawnObstacle(){ obstacles.push({ x: Math.random()*(parseFloat(canvas.style.width)-60), y:-60, size: Math.max(22, player.w*0.6), speed: 3.5 + Math.random()*1.6 }); }
 
-btn_esquerda = pygame.Rect(50, ALTURA - 180, 200, 150)
-btn_direita = pygame.Rect(270, ALTURA - 180, 200, 150)
-btn_pular = pygame.Rect(LARGURA - 250, ALTURA - 180, 200, 150)
+/* Collision helper (using screen CSS pixels) */
+function rectOverlap(a,b){
+  return a.x < b.x + b.size && a.x + a.w > b.x && a.y < b.y + b.size && a.y + a.h > b.y;
+}
 
-tela_inicial = True
+/* Main loop */
+function loop(){
+  if(!running) return;
+  // clear (use CSS size for clearing)
+  const cssW = parseFloat(getComputedStyle(canvas).width);
+  const cssH = parseFloat(getComputedStyle(canvas).height);
+  ctx.clearRect(0,0,cssW,cssH);
 
-# ---------------- DESENHAR FRANGUINHO ---------------- #
-def desenhar_frango(surface, x, y):
-    pygame.draw.circle(surface, AMARELO, (x + 25, y + 25), 25)
-    pygame.draw.circle(surface, PRETO, (x + 32, y + 18), 5)
-    pygame.draw.polygon(surface, LARANJA, [
-        (x + 45, y + 25),
-        (x + 60, y + 30),
-        (x + 45, y + 35)
-    ])
-    pygame.draw.circle(surface, VERMELHO, (x + 15, y + 5), 8)
-    pygame.draw.circle(surface, VERMELHO, (x + 22, y + 3), 6)
+  // spawn
+  if(Math.random() < 0.035) spawnCoin();
+  if(Math.random() < 0.03) spawnObstacle();
 
-# ---------------- LOOP PRINCIPAL ---------------- #
-while True:
-    clock.tick(FPS)
+  // move player
+  if(left) player.x = Math.max(4, player.x - player.speed);
+  if(right) player.x = Math.min(cssW - player.w - 4, player.x + player.speed);
 
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            pygame.quit()
-            sys.exit()
+  // draw player
+  drawChicken(player.x, player.y, player.w, player.h);
 
-        # CLICK
-        if event.type == pygame.MOUSEBUTTONDOWN:
-            mx, my = pygame.mouse.get_pos()
+  // update and draw coins
+  for(let i=coins.length-1;i>=0;i--){
+    const c = coins[i];
+    c.y += c.speed;
+    // coin draw
+    ctx.fillStyle='gold';
+    ctx.beginPath();
+    ctx.arc(c.x + c.size/2, c.y + c.size/2, c.size/2, 0, Math.PI*2); ctx.fill();
+    // collision?
+    if(rectOverlap({x:player.x,y:player.y,w:player.w,h:player.h}, c)){
+      coins.splice(i,1);
+      score++; desconto = score * 0.10;
+      quickBeep(880,0.06);
+      updateInfo();
+    } else if(c.y > cssH + 40) coins.splice(i,1);
+  }
 
-            # INICIAR JOGO
-            if tela_inicial and btn_inicio.collidepoint(mx, my):
-                tela_inicial = False
+  // obstacles
+  for(let i=obstacles.length-1;i>=0;i--){
+    const o = obstacles[i];
+    o.y += o.speed;
+    ctx.fillStyle='crimson';
+    ctx.fillRect(o.x, o.y, o.size, o.size);
+    if(rectOverlap({x:player.x,y:player.y,w:player.w,h:player.h}, o)){
+      quickBeep(220,0.15);
+      running = false;
+      if(score > record) { record = score; localStorage.setItem('frango_record', String(record)); }
+      showGameOver();
+      return;
+    } else if(o.y > cssH + 80) obstacles.splice(i,1);
+  }
 
-            # CONTROLES
-            if not tela_inicial:
-                if btn_esquerda.collidepoint(mx, my):
-                    player.x -= vel_x
-                if btn_direita.collidepoint(mx, my):
-                    player.x += vel_x
-                if btn_pular.collidepoint(mx, my) and no_chao:
-                    vel_y = -18
-                    no_chao = False
+  requestAnimationFrame(loop);
+}
 
-    # ---------------- TELA INICIAL ---------------- #
-    if tela_inicial:
-        TELA.fill(BRANCO)
-        pygame.draw.rect(TELA, AMARELO, btn_inicio, border_radius=40)
+/* UI helpers */
+function updateInfo(){ infoEl.textContent = `Moedas: ${score} | Desconto: R$${desconto.toFixed(2)} | Recorde: ${record}`; }
+function showGameOver(){
+  finalText.textContent = `Você pegou ${score} moedas • Desconto: R$${desconto.toFixed(2)}`;
+  gameoverEl.style.display = 'flex';
+}
 
-        font = pygame.font.SysFont(None, 90)
-        txt = font.render("INICIAR", True, PRETO)
-        TELA.blit(txt, (btn_inicio.x + 80, btn_inicio.y + 70))
+/* Start / Restart */
+function startGame(){
+  // ensure canvas visible, controls visible, and focus
+  startBtn.style.display = 'none';
+  controls.style.display = 'flex';
+  canvas.style.display = 'block';
+  // reset state
+  score = 0; desconto=0; coins=[]; obstacles=[];
+  updateInfo();
+  // set player position based on current CSS sizes (responsive)
+  const cssW = parseFloat(getComputedStyle(canvas).width);
+  const cssH = parseFloat(getComputedStyle(canvas).height);
+  player.w = Math.max(36, Math.round(cssW * 0.15));
+  player.h = player.w;
+  player.x = cssW/2 - player.w/2;
+  player.y = cssH - player.h - 18;
+  // flags
+  left = right = false;
+  running = true;
+  // start loop
+  requestAnimationFrame(loop);
+}
 
-        pygame.display.update()
-        continue
+/* Input — pointer-based for instant response across devices */
+function pointerDownHandler(e){
+  e.preventDefault();
+  const t = e.currentTarget.id;
+  if(t === 'leftBtn'){ left = true; }
+  if(t === 'rightBtn'){ right = true; }
+}
+function pointerUpHandler(e){
+  e.preventDefault();
+  const t = e.currentTarget.id;
+  if(t === 'leftBtn'){ left = false; }
+  if(t === 'rightBtn'){ right = false; }
+}
 
-    # ---------------- FÍSICA ---------------- #
-    vel_y += gravidade
-    player.y += vel_y
+/* Hook events: keyboard (PC), pointer (mobile & mouse), touch fallback */
+document.addEventListener('keydown', (e)=>{ if(e.key==='ArrowLeft'|| e.key==='a') left=true; if(e.key==='ArrowRight'|| e.key==='d') right=true; });
+document.addEventListener('keyup', (e)=>{ if(e.key==='ArrowLeft'|| e.key==='a') left=false; if(e.key==='ArrowRight'|| e.key==='d') right=false; });
 
-    # Colisão com o chão
-    chao = ALTURA - 200
-    if player.y >= chao:
-        player.y = chao
-        vel_y = 0
-        no_chao = True
+['pointerdown','touchstart','mousedown'].forEach(evt=>{
+  leftBtn.addEventListener(evt, pointerDownHandler, {passive:false});
+  rightBtn.addEventListener(evt, pointerDownHandler, {passive:false});
+});
+['pointerup','touchend','mouseup','touchcancel'].forEach(evt=>{
+  leftBtn.addEventListener(evt, pointerUpHandler, {passive:false});
+  rightBtn.addEventListener(evt, pointerUpHandler, {passive:false});
+});
 
-    # ---------------- DESENHO DO JOGO ---------------- #
-    TELA.fill(BRANCO)
+/* start button: use pointerdown to ensure immediate response on mobile */
+startBtn.addEventListener('pointerdown', (e)=>{ e.preventDefault(); startGame(); }, {passive:false});
+retryBtn.addEventListener('pointerdown', (e)=>{ e.preventDefault(); gameoverEl.style.display='none'; startGame(); }, {passive:false});
 
-    # Franguinho
-    desenhar_frango(TELA, player.x, player.y)
+/* prevent page scroll on touch moves inside canvas */
+canvas.addEventListener('touchmove', (e)=>{ e.preventDefault(); }, {passive:false});
 
-    # Botões
-    pygame.draw.rect(TELA, CINZA, btn_esquerda, border_radius=30)
-    pygame.draw.rect(TELA, CINZA, btn_direita, border_radius=30)
-    pygame.draw.rect(TELA, CINZA, btn_pular, border_radius=30)
-
-    font = pygame.font.SysFont(None, 70)
-    TELA.blit(font.render("←", True, PRETO), (btn_esquerda.x + 75, btn_esquerda.y + 45))
-    TELA.blit(font.render("→", True, PRETO), (btn_direita.x + 75, btn_direita.y + 45))
-    TELA.blit(font.render("PULAR", True, PRETO), (btn_pular.x + 25, btn_pular.y + 45))
-
-    pygame.display.update()
+/* initial info */
+updateInfo();
+</script>
+</body>
+</html>
